@@ -5,6 +5,21 @@ import type { BreadcrumbItem } from '@/types';
 import { Head, router, useForm } from '@inertiajs/vue3';
 import { onBeforeUnmount, onMounted, ref } from 'vue';
 
+// icons
+import {
+    Activity, // Status
+    Clock, // Pending
+    Database, // DB check
+    ListChecks, // Migration status
+    MoreHorizontal, // More
+    Pencil, // Edit
+    Play, // Migrate
+    Power, // Activate
+    PowerOff, // Deactivate
+    Server, // Provision
+    Trash2, // Delete
+} from 'lucide-vue-next';
+
 type TenantRow = {
     id: number;
     name: string;
@@ -17,33 +32,27 @@ type TenantRow = {
 };
 
 const props = defineProps<{ tenants: { data: TenantRow[] } }>();
-
 const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Tenants', href: '/admin/tenants' },
 ];
 
-// --- create/edit modal state
+// ---------- Create/Edit modal ----------
 const modalOpen = ref(false);
 const editingId = ref<number | null>(null);
 
-// --- result modal (for status/db-check/pending outputs)
+// ---------- Result modal ----------
 const resultOpen = ref(false);
 const resultTitle = ref('');
 const resultBody = ref('');
 
-function showResult(title: string, body: string | object) {
-    resultTitle.value = title;
-    resultBody.value =
-        typeof body === 'string' ? body : JSON.stringify(body, null, 2);
-    resultOpen.value = true;
-}
-function closeResult() {
-    resultOpen.value = false;
-    resultTitle.value = '';
-    resultBody.value = '';
-}
+// ---------- More menu (portal) ----------
+const moreOpen = ref(false);
+const moreTenant = ref<TenantRow | null>(null);
+const morePos = ref({ top: 0, left: 0 });
+const moreAnchorEl = ref<HTMLElement | null>(null);
+const menuRef = ref<HTMLElement | null>(null);
 
-// --- form
+// ---------- Form ----------
 const form = useForm({
     name: '',
     domain: '',
@@ -68,20 +77,18 @@ function openEdit(t: TenantRow) {
     form.db_host = t.db_host ?? '';
     form.db_port = (t.db_port ?? null) as number | null;
     form.db_username = t.db_username ?? '';
-    form.db_password = ''; // নিরাপত্তার কারণে দেখাচ্ছি না
+    form.db_password = '';
     modalOpen.value = true;
 }
 function closeModal() {
     modalOpen.value = false;
 }
-
 function resetForm() {
     form.reset();
     form.is_active = true;
     form.db_port = null;
     editingId.value = null;
 }
-
 function submit() {
     if (editingId.value) {
         router.put(`/admin/tenants/${editingId.value}`, form.data(), {
@@ -102,35 +109,76 @@ function submit() {
     }
 }
 
-// ---- helpers
+// ---------- Helpers ----------
 const ask = (msg: string) => window.confirm(msg);
+
+// JSON GET helper (include credentials so session cookie goes)
 const jsonGet = async (url: string) => {
-    const res = await fetch(url, { headers: { Accept: 'application/json' } });
+    const res = await fetch(url, {
+        method: 'GET',
+        credentials: 'same-origin', // <-- important
+        headers: { Accept: 'application/json' },
+    });
     return res.json();
 };
 
-// ---- actions (all with confirm)
-const runMigrate = (t: TenantRow) => {
-    if (!ask(`Run migrations for "${t.name}"?`)) return;
-    router.post(`/admin/tenants/${t.id}/migrate`, {}, { preserveScroll: true });
+// CSRF helper for JSON POST
+const csrf = () =>
+    (document.querySelector('meta[name="csrf-token"]') as HTMLMetaElement)
+        ?.content || '';
+
+const jsonPost = async (url: string, payload: any = {}) => {
+    const res = await fetch(url, {
+        method: 'POST',
+        credentials: 'same-origin', // <-- গুরুত্বপূর্ণ: সেশন কুকি যাবে
+        headers: {
+            Accept: 'application/json',
+            'Content-Type': 'application/json',
+            'X-CSRF-TOKEN': csrf(),
+            'X-Requested-With': 'XMLHttpRequest',
+        },
+        body: JSON.stringify(payload),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+        throw new Error(data?.message || data?.error || 'Request failed');
+    }
+    return data;
 };
-const runProvision = (t: TenantRow) => {
+
+function showResult(title: string, body: string | object) {
+    resultTitle.value = title;
+    resultBody.value =
+        typeof body === 'string' ? body : JSON.stringify(body, null, 2);
+    resultOpen.value = true;
+}
+function closeResult() {
+    resultOpen.value = false;
+    resultTitle.value = '';
+    resultBody.value = '';
+}
+
+// ---------- Actions (confirm everywhere except Create/Edit) ----------
+const runMigrate = async (t: TenantRow) => {
+    if (!ask(`Run migrations for "${t.name}"?`)) return;
+    try {
+        const data = await jsonPost(`/admin/tenants/${t.id}/migrate`);
+        showResult(`Migrate — ${t.name}`, data);
+        router.reload({ only: ['tenants'] });
+    } catch (e: any) {
+        alert(e.message);
+    }
+};
+const runProvision = async (t: TenantRow) => {
     if (!ask(`Provision (create DB if missing) and migrate "${t.name}"?`))
         return;
-    router.post(
-        `/admin/tenants/${t.id}/provision`,
-        {},
-        { preserveScroll: true },
-    );
-};
-const runFresh = (t: TenantRow) => {
-    if (!ask(`Fresh migrate "${t.name}" (DROP all tables then migrate)?`))
-        return;
-    router.post(
-        `/admin/tenants/${t.id}/migrate-fresh`,
-        {},
-        { preserveScroll: true },
-    );
+    try {
+        const data = await jsonPost(`/admin/tenants/${t.id}/provision`);
+        showResult(`Provision — ${t.name}`, data);
+        router.reload({ only: ['tenants'] });
+    } catch (e: any) {
+        alert(e.message);
+    }
 };
 const destroyTenant = (t: TenantRow) => {
     if (!ask(`Delete tenant "${t.name}"? This cannot be undone.`)) return;
@@ -142,7 +190,7 @@ const toggleTenant = (t: TenantRow) => {
     router.post(`/admin/tenants/${t.id}/toggle`, {}, { preserveScroll: true });
 };
 
-// info/status GETs → show in result modal
+// info/status → result modal
 const checkDb = async (t: TenantRow) => {
     if (!ask(`Check DB connection & existence for "${t.name}"?`)) return;
     const data = await jsonGet(`/admin/tenants/${t.id}/db-check`);
@@ -164,12 +212,62 @@ const showPending = async (t: TenantRow) => {
     showResult(`Pending Migrations — ${t.name}`, data);
 };
 
-// Esc closes create/edit modal
-function onKey(e: KeyboardEvent) {
-    if (e.key === 'Escape' && modalOpen.value) closeModal();
+// ---------- More menu logic ----------
+function openMore(t: TenantRow, el: HTMLElement) {
+    const r = el.getBoundingClientRect();
+    const menuWidth = 224;
+    const padding = 8;
+    const top = r.bottom + 6;
+    const left = Math.min(r.left, window.innerWidth - menuWidth - padding);
+    morePos.value = { top, left };
+    moreTenant.value = t;
+    moreAnchorEl.value = el;
+    moreOpen.value = true;
 }
-onMounted(() => window.addEventListener('keydown', onKey));
-onBeforeUnmount(() => window.removeEventListener('keydown', onKey));
+function closeMore() {
+    moreOpen.value = false;
+    moreTenant.value = null;
+    moreAnchorEl.value = null;
+}
+
+/** Run a More-menu action safely, then close menu */
+function doAndClose(action: (t: TenantRow) => any | Promise<any>) {
+    const t = moreTenant.value;
+    if (!t) return;
+    action(t);
+    closeMore();
+}
+
+// ---------- Global listeners ----------
+function onGlobalClick(e: MouseEvent) {
+    if (!moreOpen.value) return;
+    const t = e.target as Node;
+    const insideAnchor = !!moreAnchorEl.value?.contains(t);
+    const insideMenu = !!menuRef.value?.contains(t);
+    if (!insideAnchor && !insideMenu) closeMore();
+}
+function onGlobalResizeScroll() {
+    if (moreOpen.value) closeMore();
+}
+function onKey(e: KeyboardEvent) {
+    if (e.key === 'Escape') {
+        if (modalOpen.value) closeModal();
+        if (resultOpen.value) closeResult();
+        if (moreOpen.value) closeMore();
+    }
+}
+onMounted(() => {
+    window.addEventListener('click', onGlobalClick, true);
+    window.addEventListener('resize', onGlobalResizeScroll, { passive: true });
+    window.addEventListener('scroll', onGlobalResizeScroll, { passive: true });
+    window.addEventListener('keydown', onKey);
+});
+onBeforeUnmount(() => {
+    window.removeEventListener('click', onGlobalClick, true);
+    window.removeEventListener('resize', onGlobalResizeScroll);
+    window.removeEventListener('scroll', onGlobalResizeScroll);
+    window.removeEventListener('keydown', onKey);
+});
 </script>
 
 <template>
@@ -177,139 +275,122 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey));
 
     <AppLayout :breadcrumbs="breadcrumbs">
         <div class="flex h-full flex-1 flex-col gap-6 p-6">
-            <!-- Header + Add button -->
-            <div class="flex items-center justify-between">
+            <!-- Header -->
+            <div class="flex items-center gap-4">
                 <h1 class="text-xl font-semibold">Tenants</h1>
                 <button
                     @click="openCreate"
-                    class="rounded bg-black px-4 py-2 text-white dark:bg-white dark:text-black"
+                    class="rounded bg-black px-2 py-1 text-white dark:bg-white dark:text-black"
                 >
-                    New Tenant
+                    +
                 </button>
             </div>
 
-            <!-- List -->
+            <!-- Cards Grid -->
             <div
-                class="rounded-xl border border-sidebar-border/70 bg-white p-4 dark:border-sidebar-border dark:bg-sidebar"
+                class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4"
             >
-                <div class="overflow-x-auto">
-                    <table class="w-full border-collapse text-sm">
-                        <thead>
-                            <tr
-                                class="bg-gray-100 text-left dark:bg-neutral-800"
+                <div
+                    v-for="t in props.tenants.data"
+                    :key="t.id"
+                    class="relative rounded-xl border border-sidebar-border/70 bg-white p-4 dark:border-sidebar-border dark:bg-sidebar"
+                >
+                    <!-- Header row -->
+                    <div class="flex items-start justify-between gap-2">
+                        <div class="min-w-0">
+                            <h3 class="truncate text-base font-semibold">
+                                {{ t.name }}
+                            </h3>
+                            <div
+                                class="mt-1 text-xs text-neutral-500 dark:text-neutral-400"
                             >
-                                <th class="p-2">Name</th>
-                                <th class="p-2">Domain</th>
-                                <th class="p-2">DB</th>
-                                <th class="p-2 text-center">Active</th>
-                                <th class="p-2">Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <tr
-                                v-for="t in props.tenants.data"
-                                :key="t.id"
-                                class="border-t dark:border-neutral-700"
-                            >
-                                <td class="p-2">{{ t.name }}</td>
-                                <td class="p-2">{{ t.domain }}</td>
-                                <td class="p-2">{{ t.db_name }}</td>
-                                <td class="p-2 text-center">
+                                <div class="truncate">
+                                    Domain:
                                     <span
-                                        class="rounded border px-2 py-0.5 text-xs"
-                                        :class="
-                                            t.is_active
-                                                ? 'border-green-300 text-green-700'
-                                                : 'border-red-300 text-red-700'
-                                        "
+                                        class="font-medium text-neutral-700 dark:text-neutral-200"
+                                        >{{ t.domain }}</span
                                     >
-                                        {{ t.is_active ? 'Yes' : 'No' }}
-                                    </span>
-                                </td>
-                                <td class="p-2">
-                                    <div class="flex flex-wrap gap-2">
-                                        <!-- mutate ops -->
-                                        <button
-                                            @click="runMigrate(t)"
-                                            class="rounded border px-2 py-1"
-                                        >
-                                            Migrate
-                                        </button>
-                                        <button
-                                            @click="runFresh(t)"
-                                            class="rounded border px-2 py-1 text-amber-700"
-                                        >
-                                            Fresh
-                                        </button>
-                                        <button
-                                            @click="runProvision(t)"
-                                            class="rounded border px-2 py-1"
-                                        >
-                                            Provision
-                                        </button>
+                                </div>
+                                <div class="truncate">
+                                    DB:
+                                    <span
+                                        class="font-medium text-neutral-700 dark:text-neutral-200"
+                                        >{{ t.db_name }}</span
+                                    >
+                                </div>
+                            </div>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <span
+                                class="shrink-0 rounded-full px-2 py-0.5 text-xs"
+                                :class="
+                                    t.is_active
+                                        ? 'bg-green-100 text-green-700 dark:bg-green-900/20 dark:text-green-300'
+                                        : 'bg-red-100 text-red-700 dark:bg-red-900/20 dark:text-red-300'
+                                "
+                            >
+                                {{ t.is_active ? 'Active' : 'Inactive' }}
+                            </span>
 
-                                        <!-- status/info -->
-                                        <button
-                                            @click="checkDb(t)"
-                                            class="rounded border px-2 py-1"
-                                        >
-                                            DB Check
-                                        </button>
-                                        <button
-                                            @click="showConnStatus(t)"
-                                            class="rounded border px-2 py-1"
-                                        >
-                                            Status
-                                        </button>
-                                        <button
-                                            @click="showMigrationStatus(t)"
-                                            class="rounded border px-2 py-1"
-                                        >
-                                            Mig Status
-                                        </button>
-                                        <button
-                                            @click="showPending(t)"
-                                            class="rounded border px-2 py-1"
-                                        >
-                                            Pending
-                                        </button>
+                            <button
+                                class="rounded border p-1.5 hover:bg-black/5 dark:hover:bg-white/10"
+                                @click="
+                                    openMore(
+                                        t,
+                                        $event.currentTarget as HTMLElement,
+                                    )
+                                "
+                                title="More actions"
+                                aria-label="More actions"
+                            >
+                                <MoreHorizontal class="h-4 w-4" />
+                            </button>
+                        </div>
+                    </div>
 
-                                        <!-- state & crud -->
-                                        <button
-                                            @click="toggleTenant(t)"
-                                            class="rounded border px-2 py-1"
-                                        >
-                                            {{
-                                                t.is_active
-                                                    ? 'Deactivate'
-                                                    : 'Activate'
-                                            }}
-                                        </button>
-                                        <button
-                                            @click="openEdit(t)"
-                                            class="rounded border px-2 py-1"
-                                        >
-                                            Edit
-                                        </button>
-                                        <button
-                                            @click="destroyTenant(t)"
-                                            class="rounded border px-2 py-1 text-red-600"
-                                        >
-                                            Delete
-                                        </button>
-                                    </div>
-                                </td>
-                            </tr>
-                            <tr v-if="!props.tenants.data?.length">
-                                <td
-                                    class="p-4 text-center text-neutral-500"
-                                    colspan="5"
-                                >
-                                    No tenants found.
-                                </td>
-                            </tr>
-                        </tbody>
-                    </table>
+                    <!-- Action row -->
+                    <div class="mt-4 flex flex-wrap items-center gap-2">
+                        <button
+                            class="inline-flex items-center gap-1.5 rounded border px-2 py-1 text-sm hover:bg-black/5 dark:hover:bg-white/10"
+                            @click="openEdit(t)"
+                            title="Edit tenant"
+                        >
+                            <Pencil class="h-4 w-4" /> Edit
+                        </button>
+
+                        <button
+                            class="inline-flex items-center gap-1.5 rounded border px-2 py-1 text-sm hover:bg-black/5 dark:hover:bg-white/10"
+                            @click="runMigrate(t)"
+                            title="Run tenant migrations"
+                        >
+                            <Play class="h-4 w-4" /> Migrate
+                        </button>
+
+                        <button
+                            class="inline-flex items-center gap-1.5 rounded border px-2 py-1 text-sm hover:bg-black/5 dark:hover:bg-white/10"
+                            @click="toggleTenant(t)"
+                            :title="
+                                t.is_active
+                                    ? 'Deactivate tenant'
+                                    : 'Activate tenant'
+                            "
+                        >
+                            <component
+                                :is="t.is_active ? PowerOff : Power"
+                                class="h-4 w-4"
+                            />
+                            {{ t.is_active ? 'Deactivate' : 'Activate' }}
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Empty state -->
+                <div v-if="!props.tenants.data?.length" class="col-span-full">
+                    <div
+                        class="rounded-xl border border-dashed p-8 text-center text-neutral-500 dark:border-neutral-700"
+                    >
+                        No tenants found.
+                    </div>
                 </div>
             </div>
 
@@ -436,7 +517,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey));
                 </div>
             </div>
 
-            <!-- Result Modal (for JSON/text outputs) -->
+            <!-- Result Modal -->
             <div
                 v-if="resultOpen"
                 class="fixed inset-0 z-50"
@@ -484,7 +565,64 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey));
                     </div>
                 </div>
             </div>
-            <!-- /Result Modal -->
+
+            <!-- More menu (Teleport to body to avoid overflow clipping) -->
+            <Teleport to="body">
+                <div
+                    v-if="moreOpen && moreTenant"
+                    class="fixed z-[60] w-56 rounded border bg-white p-1 shadow-md dark:border-sidebar-border dark:bg-sidebar"
+                    :style="{
+                        top: morePos.top + 'px',
+                        left: morePos.left + 'px',
+                    }"
+                    ref="menuRef"
+                >
+                    <button
+                        @click="doAndClose(runProvision)"
+                        class="flex w-full items-center gap-2 rounded px-2 py-1.5 text-left hover:bg-black/5 dark:hover:bg-white/10"
+                        title="Create DB if missing and run migrations"
+                    >
+                        <Server class="h-4 w-4" /> Provision
+                    </button>
+                    <hr
+                        class="my-1 border-neutral-200 dark:border-neutral-700"
+                    />
+                    <button
+                        @click="doAndClose(checkDb)"
+                        class="flex w-full items-center gap-2 rounded px-2 py-1.5 text-left hover:bg-black/5 dark:hover:bg-white/10"
+                    >
+                        <Database class="h-4 w-4" /> DB check
+                    </button>
+                    <button
+                        @click="doAndClose(showConnStatus)"
+                        class="flex w-full items-center gap-2 rounded px-2 py-1.5 text-left hover:bg-black/5 dark:hover:bg-white/10"
+                    >
+                        <Activity class="h-4 w-4" /> Status
+                    </button>
+                    <button
+                        @click="doAndClose(showMigrationStatus)"
+                        class="flex w-full items-center gap-2 rounded px-2 py-1.5 text-left hover:bg-black/5 dark:hover:bg-white/10"
+                    >
+                        <ListChecks class="h-4 w-4" /> Migration status
+                    </button>
+                    <button
+                        @click="doAndClose(showPending)"
+                        class="flex w-full items-center gap-2 rounded px-2 py-1.5 text-left hover:bg-black/5 dark:hover:bg-white/10"
+                    >
+                        <Clock class="h-4 w-4" /> Pending
+                    </button>
+                    <hr
+                        class="my-1 border-neutral-200 dark:border-neutral-700"
+                    />
+                    <button
+                        @click="doAndClose(destroyTenant)"
+                        class="flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20"
+                    >
+                        <Trash2 class="h-4 w-4" /> Delete
+                    </button>
+                </div>
+            </Teleport>
+            <!-- /More menu -->
         </div>
     </AppLayout>
 </template>
