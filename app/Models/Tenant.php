@@ -30,6 +30,7 @@ class Tenant extends Model
             return $value;
         }
     }
+
     public function setDbPasswordAttribute($value)
     {
         $this->attributes['db_password'] = $value ? encrypt($value) : null;

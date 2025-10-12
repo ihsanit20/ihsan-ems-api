@@ -2,9 +2,11 @@
 
 namespace App\Providers;
 
+use App\Models\TenantPersonalAccessToken;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Support\Facades\Gate;
 use App\Models\User;
+use Laravel\Sanctum\Sanctum;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -22,5 +24,6 @@ class AppServiceProvider extends ServiceProvider
     public function boot(): void
     {
         Gate::define('manage-tenants', fn(User $u) => (bool)$u->is_super_admin);
+        Sanctum::usePersonalAccessTokenModel(TenantPersonalAccessToken::class);
     }
 }
