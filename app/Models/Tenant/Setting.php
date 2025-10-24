@@ -1,14 +1,14 @@
 <?php
 
-namespace App\Models;
+namespace App\Models\Tenant;
 
 use Illuminate\Database\Eloquent\Model;
 
-class TenantSetting extends Model
+class Setting extends Model
 {
     // টেন্যান্ট DB তে পয়েন্ট করি
     protected $connection = 'tenant';
-    protected $table = 'tenant_settings';
+    protected $table = 'settings';
 
     protected $fillable = [
         'name',

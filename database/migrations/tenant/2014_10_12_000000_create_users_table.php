@@ -11,11 +11,24 @@ return new class extends Migration {
             $table->id();
             $table->string('name', 191);
             $table->string('phone', 32)->unique();
-            $table->string('password');
+            $table->string('email', 191)->nullable()->index();
+            $table->string('password')->nullable();
+
+            $table->enum('role', [
+                'Developer',
+                'Owner',
+                'Admin',
+                'Teacher',
+                'Accountant',
+                'Guardian',
+                'Student'
+            ])->default('Guardian');
+
+            $table->timestamp('email_verified_at')->nullable();
             $table->rememberToken();
             $table->timestamps();
 
-            // চাইলে এখানে index/constraints আরেকটু কাস্টমাইজ করতে পারেন
+            $table->index(['name', 'role']);
         });
     }
 

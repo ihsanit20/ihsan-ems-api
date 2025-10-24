@@ -1,14 +1,15 @@
 <?php
 
-namespace App\Http\Controllers;
+namespace App\Http\Controllers\Tenant;
 
-use App\Models\TenantSetting;
+use App\Http\Controllers\Controller;
 use App\Services\Tenancy\TenantManager;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 use App\Models\Tenant as CentralTenant;
+use App\Models\Tenant\Setting;
 
-class TenantMetaController extends Controller
+class MetaController extends Controller
 {
     /**
      * GET /api/v1/tenant/meta
@@ -35,7 +36,7 @@ class TenantMetaController extends Controller
         // 5 মিনিট ক্যাশ—meta সাধারণত ঘন ঘন পাল্টায় না
         $cacheKey = "tenant:{$tenant->id}:meta:v1";
         $meta = Cache::remember($cacheKey, 300, function () use ($tenant) {
-            $s = TenantSetting::query()->first(); // একটাই রো রাখব
+            $s = Setting::query()->first(); // একটাই রো রাখব
 
             // ডিফল্ট + override merge
             $branding = array_merge([

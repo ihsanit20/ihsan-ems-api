@@ -3,6 +3,7 @@
 use App\Http\Middleware\IdentifyTenant;          // ⬅️ যোগ করুন
 use App\Http\Middleware\HandleAppearance;
 use App\Http\Middleware\HandleInertiaRequests;
+use App\Providers\TenancyServiceProvider;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
@@ -38,6 +39,11 @@ return Application::configure(basePath: dirname(__DIR__))
             AddLinkHeadersForPreloadedAssets::class,
         ]);
     })
+
+    ->withProviders([
+        TenancyServiceProvider::class,
+    ])
+
     ->withExceptions(function (Exceptions $exceptions) {
         //
     })->create();
