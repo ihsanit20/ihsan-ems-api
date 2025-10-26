@@ -1,5 +1,5 @@
-<!-- resources/js/Pages/Tenants/Index.vue -->
 <script setup lang="ts">
+import UploadBrandingModal from '@/components/admin/UploadBrandingModal.vue';
 import AppLayout from '@/layouts/AppLayout.vue';
 import type { BreadcrumbItem } from '@/types';
 import { Head, router, useForm } from '@inertiajs/vue3';
@@ -7,17 +7,18 @@ import { onBeforeUnmount, onMounted, ref } from 'vue';
 
 // icons
 import {
-    Activity, // Status
-    Clock, // Pending
-    Database, // DB check
-    ListChecks, // Migration status
-    MoreHorizontal, // More
-    Pencil, // Edit
-    Play, // Migrate
-    Power, // Activate
-    PowerOff, // Deactivate
-    Server, // Provision
-    Trash2, // Delete
+    Activity,
+    Clock,
+    Database,
+    ImageUp,
+    ListChecks,
+    MoreHorizontal,
+    Pencil,
+    Play,
+    Power,
+    PowerOff,
+    Server,
+    Trash2,
 } from 'lucide-vue-next';
 
 type TenantRow = {
@@ -29,6 +30,7 @@ type TenantRow = {
     db_host?: string | null;
     db_port?: number | null;
     db_username?: string | null;
+    branding_urls?: { logo_url?: string; favicon_url?: string };
 };
 
 const props = defineProps<{ tenants: { data: TenantRow[] } }>();
@@ -112,17 +114,17 @@ function submit() {
 // ---------- Helpers ----------
 const ask = (msg: string) => window.confirm(msg);
 
-// JSON GET helper (include credentials so session cookie goes)
+// JSON GET helper
 const jsonGet = async (url: string) => {
     const res = await fetch(url, {
         method: 'GET',
-        credentials: 'same-origin', // <-- important
+        credentials: 'same-origin',
         headers: { Accept: 'application/json' },
     });
     return res.json();
 };
 
-// CSRF helper for JSON POST
+// CSRF helper for JSON POST (not used for FormData)
 const csrf = () =>
     (document.querySelector('meta[name="csrf-token"]') as HTMLMetaElement)
         ?.content || '';
@@ -130,7 +132,7 @@ const csrf = () =>
 const jsonPost = async (url: string, payload: any = {}) => {
     const res = await fetch(url, {
         method: 'POST',
-        credentials: 'same-origin', // <-- গুরুত্বপূর্ণ: সেশন কুকি যাবে
+        credentials: 'same-origin',
         headers: {
             Accept: 'application/json',
             'Content-Type': 'application/json',
@@ -158,7 +160,7 @@ function closeResult() {
     resultBody.value = '';
 }
 
-// ---------- Actions (confirm everywhere except Create/Edit) ----------
+// ---------- Actions ----------
 const runMigrate = async (t: TenantRow) => {
     if (!ask(`Run migrations for "${t.name}"?`)) return;
     try {
@@ -212,6 +214,22 @@ const showPending = async (t: TenantRow) => {
     showResult(`Pending Migrations — ${t.name}`, data);
 };
 
+// ---------- Upload Branding modal state ----------
+const uploadOpen = ref(false);
+const uploadTenant = ref<TenantRow | null>(null);
+
+function openUpload(t: TenantRow) {
+    uploadTenant.value = t;
+    uploadOpen.value = true;
+}
+function onUploaded(payload: any) {
+    showResult(
+        `Branding uploaded — ${uploadTenant.value?.name ?? ''}`,
+        payload,
+    );
+    router.reload({ only: ['tenants'] });
+}
+
 // ---------- More menu logic ----------
 function openMore(t: TenantRow, el: HTMLElement) {
     const r = el.getBoundingClientRect();
@@ -229,8 +247,6 @@ function closeMore() {
     moreTenant.value = null;
     moreAnchorEl.value = null;
 }
-
-/** Run a More-menu action safely, then close menu */
 function doAndClose(action: (t: TenantRow) => any | Promise<any>) {
     const t = moreTenant.value;
     if (!t) return;
@@ -252,6 +268,7 @@ function onGlobalResizeScroll() {
 function onKey(e: KeyboardEvent) {
     if (e.key === 'Escape') {
         if (modalOpen.value) closeModal();
+        if (uploadOpen.value) uploadOpen.value = false;
         if (resultOpen.value) closeResult();
         if (moreOpen.value) closeMore();
     }
@@ -298,9 +315,19 @@ onBeforeUnmount(() => {
                     <!-- Header row -->
                     <div class="flex items-start justify-between gap-2">
                         <div class="min-w-0">
-                            <h3 class="truncate text-base font-semibold">
-                                {{ t.name }}
-                            </h3>
+                            <div class="flex items-center gap-2">
+                                <h3 class="truncate text-base font-semibold">
+                                    {{ t.name }}
+                                </h3>
+                                <!-- small favicon near name -->
+                                <img
+                                    v-if="t.branding_urls?.favicon_url"
+                                    :src="t.branding_urls.favicon_url"
+                                    class="h-4 w-4 rounded"
+                                    alt="favicon"
+                                    title="Favicon preview"
+                                />
+                            </div>
                             <div
                                 class="mt-1 text-xs text-neutral-500 dark:text-neutral-400"
                             >
@@ -319,7 +346,62 @@ onBeforeUnmount(() => {
                                     >
                                 </div>
                             </div>
+
+                            <!-- ✅ Branding preview block -->
+                            <div class="mt-3 flex items-center gap-3">
+                                <!-- logo preview -->
+                                <a
+                                    v-if="t.branding_urls?.logo_url"
+                                    :href="t.branding_urls.logo_url"
+                                    target="_blank"
+                                    rel="noopener"
+                                    class="inline-flex items-center gap-2 rounded border px-2 py-1"
+                                    title="Open logo in new tab"
+                                >
+                                    <img
+                                        :src="t.branding_urls.logo_url"
+                                        alt="logo"
+                                        class="h-8 max-w-[160px] object-contain"
+                                    />
+                                    <span class="text-xs text-neutral-500"
+                                        >logo.png</span
+                                    >
+                                </a>
+                                <span
+                                    v-else
+                                    class="inline-flex h-8 items-center justify-center rounded border px-2 text-xs text-neutral-500 dark:border-neutral-700"
+                                >
+                                    No logo
+                                </span>
+
+                                <!-- favicon preview (bigger) -->
+                                <a
+                                    v-if="t.branding_urls?.favicon_url"
+                                    :href="t.branding_urls.favicon_url"
+                                    target="_blank"
+                                    rel="noopener"
+                                    class="inline-flex items-center gap-2 rounded border px-2 py-1"
+                                    title="Open favicon in new tab"
+                                >
+                                    <img
+                                        :src="t.branding_urls.favicon_url"
+                                        alt="favicon"
+                                        class="h-8 w-8 rounded"
+                                    />
+                                    <span class="text-xs text-neutral-500"
+                                        >favicon.png</span
+                                    >
+                                </a>
+                                <span
+                                    v-else
+                                    class="inline-flex h-8 items-center justify-center rounded border px-2 text-xs text-neutral-500 dark:border-neutral-700"
+                                >
+                                    No favicon
+                                </span>
+                            </div>
+                            <!-- /Branding preview block -->
                         </div>
+
                         <div class="flex items-center gap-2">
                             <span
                                 class="shrink-0 rounded-full px-2 py-0.5 text-xs"
@@ -566,7 +648,14 @@ onBeforeUnmount(() => {
                 </div>
             </div>
 
-            <!-- More menu (Teleport to body to avoid overflow clipping) -->
+            <!-- Upload Branding Modal (component) -->
+            <UploadBrandingModal
+                v-model:open="uploadOpen"
+                :tenant="uploadTenant"
+                @uploaded="onUploaded"
+            />
+
+            <!-- More menu -->
             <Teleport to="body">
                 <div
                     v-if="moreOpen && moreTenant"
@@ -577,6 +666,16 @@ onBeforeUnmount(() => {
                     }"
                     ref="menuRef"
                 >
+                    <button
+                        @click="doAndClose(openUpload)"
+                        class="flex w-full items-center gap-2 rounded px-2 py-1.5 text-left hover:bg-black/5 dark:hover:bg-white/10"
+                        title="Upload logo (PNG) and auto-generate favicon"
+                    >
+                        <ImageUp class="h-4 w-4" /> Upload branding
+                    </button>
+                    <hr
+                        class="my-1 border-neutral-200 dark:border-neutral-700"
+                    />
                     <button
                         @click="doAndClose(runProvision)"
                         class="flex w-full items-center gap-2 rounded px-2 py-1.5 text-left hover:bg-black/5 dark:hover:bg-white/10"
@@ -622,11 +721,10 @@ onBeforeUnmount(() => {
                     </button>
                 </div>
             </Teleport>
-            <!-- /More menu -->
         </div>
     </AppLayout>
 </template>
 
-<style scoped lang="css">
+<style scoped>
 /* optional */
 </style>

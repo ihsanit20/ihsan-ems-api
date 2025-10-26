@@ -8,7 +8,11 @@ use App\Services\Tenancy\TenantManager;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 use Inertia\Inertia;
+use Intervention\Image\ImageManager;
+use Intervention\Image\Drivers\Gd\Driver;
 
 class TenantController extends Controller
 {
@@ -23,6 +27,7 @@ class TenantController extends Controller
             'db_host' => $t->db_host,
             'db_port' => $t->db_port,
             'db_username' => $t->db_username,
+            'branding_urls' => $t->branding_urls,
         ]);
 
         return Inertia::render('Tenants/Index', [
@@ -66,6 +71,79 @@ class TenantController extends Controller
     {
         $tenant->delete();
         return back()->with('success', 'Tenant deleted');
+    }
+
+    /**
+     * ✅ Upload branding assets for a tenant:
+     * - Accepts 1 PNG file (logo)
+     * - Generates two objects on S3 (versioned path):
+     *   - logo.png      (pre-sized for UI/header)
+     *   - favicon.png   (32x32 universal favicon)
+     * - Updates central tenants.branding JSON with S3 object keys
+     */
+    public function uploadBranding(Request $request, Tenant $tenant)
+    {
+        $request->validate([
+            // PNG-only to avoid Imagick/SVG rasterizer requirements
+            'logo' => ['required', 'file', 'mimetypes:image/png', 'max:3072'], // 3MB
+            // Optional overrides (pixels). Safe defaults will be used otherwise.
+            'logo_width'   => ['nullable', 'integer', 'min:64', 'max:1024'],
+            'favicon_size' => ['nullable', 'integer', 'in:16,24,32,48'], // choose one, default 32
+        ]);
+
+        $logoWidth   = (int) ($request->input('logo_width') ?: 240);
+        $faviconSize = (int) ($request->input('favicon_size') ?: 32);
+
+        $disk = Storage::disk('s3');
+        $version = now()->format('YmdHis') . '-' . substr((string) Str::uuid(), 0, 8);
+        $base = "tenants/{$tenant->id}/branding/{$version}/";
+
+        $manager = new ImageManager(new Driver());
+
+        try {
+            $img = $manager->read($request->file('logo')->getRealPath());
+
+            // 1) Pre-sized logo (keep aspect, limit width)
+            $logo = (clone $img)->scaleDown($logoWidth, $logoWidth * 10);
+            $disk->put($base . 'logo.png', (string) $logo->toPng(), [
+                'visibility'   => 'public',
+                'ContentType'  => 'image/png',
+                'CacheControl' => 'public, max-age=31536000, immutable',
+            ]);
+
+            // 2) Universal favicon (square crop)
+            $favicon = (clone $img)->cover($faviconSize, $faviconSize);
+            $disk->put($base . 'favicon.png', (string) $favicon->toPng(), [
+                'visibility'   => 'public',
+                'ContentType'  => 'image/png',
+                'CacheControl' => 'public, max-age=31536000, immutable',
+            ]);
+
+            // Update central branding JSON with object keys (not URLs)
+            $branding = array_merge($tenant->branding ?? [], [
+                'version'     => $version,
+                'logo_key'    => $base . 'logo.png',
+                'favicon_key' => $base . 'favicon.png',
+            ]);
+
+            $tenant->update(['branding' => $branding]);
+
+            $payload = [
+                'ok'            => true,
+                'branding'      => $tenant->branding,
+                'branding_urls' => $tenant->branding_urls, // resolved by model accessor
+            ];
+
+            if ($request->expectsJson() || $request->wantsJson()) {
+                return response()->json($payload);
+            }
+            return back()->with('success', 'Branding uploaded');
+        } catch (\Throwable $e) {
+            if ($request->expectsJson() || $request->wantsJson()) {
+                return response()->json(['ok' => false, 'error' => $e->getMessage()], 500);
+            }
+            return back()->with('error', $e->getMessage());
+        }
     }
 
     /**

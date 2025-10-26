@@ -32,5 +32,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
         Route::get('/{tenant}/migrations/status', [TenantController::class, 'migrationStatus'])->name('migrations.status');
         Route::get('/{tenant}/migrations/pending', [TenantController::class, 'pendingMigrations'])->name('migrations.pending');
+
+        Route::post('/{tenant}/branding', [TenantController::class, 'uploadBranding'])->name('branding.upload');
     });
 });
