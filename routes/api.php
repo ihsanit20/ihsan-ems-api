@@ -26,7 +26,7 @@ Route::prefix('v1')
 
         /* ---------- Public (no auth) ---------- */
         // Tenant UI meta (branding, locale, features, etc.)
-        Route::get('meta', [MetaController::class, 'show'])
+        Route::get('/tenant/meta', [MetaController::class, 'show'])
             ->name('meta.show');
 
         // Token login (email/phone + password) -> PAT

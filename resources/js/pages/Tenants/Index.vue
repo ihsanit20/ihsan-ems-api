@@ -316,9 +316,6 @@ onBeforeUnmount(() => {
                     <div class="flex items-start justify-between gap-2">
                         <div class="min-w-0">
                             <div class="flex items-center gap-2">
-                                <h3 class="truncate text-base font-semibold">
-                                    {{ t.name }}
-                                </h3>
                                 <!-- small favicon near name -->
                                 <img
                                     v-if="t.branding_urls?.favicon_url"
@@ -327,6 +324,9 @@ onBeforeUnmount(() => {
                                     alt="favicon"
                                     title="Favicon preview"
                                 />
+                                <h3 class="truncate text-base font-semibold">
+                                    {{ t.name }}
+                                </h3>
                             </div>
                             <div
                                 class="mt-1 text-xs text-neutral-500 dark:text-neutral-400"
@@ -372,31 +372,6 @@ onBeforeUnmount(() => {
                                     class="inline-flex h-8 items-center justify-center rounded border px-2 text-xs text-neutral-500 dark:border-neutral-700"
                                 >
                                     No logo
-                                </span>
-
-                                <!-- favicon preview (bigger) -->
-                                <a
-                                    v-if="t.branding_urls?.favicon_url"
-                                    :href="t.branding_urls.favicon_url"
-                                    target="_blank"
-                                    rel="noopener"
-                                    class="inline-flex items-center gap-2 rounded border px-2 py-1"
-                                    title="Open favicon in new tab"
-                                >
-                                    <img
-                                        :src="t.branding_urls.favicon_url"
-                                        alt="favicon"
-                                        class="h-8 w-8 rounded"
-                                    />
-                                    <span class="text-xs text-neutral-500"
-                                        >favicon.png</span
-                                    >
-                                </a>
-                                <span
-                                    v-else
-                                    class="inline-flex h-8 items-center justify-center rounded border px-2 text-xs text-neutral-500 dark:border-neutral-700"
-                                >
-                                    No favicon
                                 </span>
                             </div>
                             <!-- /Branding preview block -->
