@@ -24,6 +24,8 @@ return new class extends Migration {
                 'Student'
             ])->default('Guardian');
 
+            $table->string('photo')->nullable()->comment('User profile photo');
+
             $table->timestamp('email_verified_at')->nullable();
             $table->rememberToken();
             $table->timestamps();
