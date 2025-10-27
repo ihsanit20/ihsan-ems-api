@@ -3,6 +3,7 @@
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Tenant\MetaController;
 use App\Http\Controllers\Tenant\AuthController;
+use App\Http\Controllers\Tenant\UserController;
 
 /*
 |--------------------------------------------------------------------------
@@ -24,33 +25,32 @@ Route::prefix('v1')
             'ts' => now()->toIso8601String(),
         ]))->name('ping');
 
-        /* ---------- Public (no auth) ---------- */
-        // Tenant UI meta (branding, locale, features, etc.)
-        Route::get('/tenant/meta', [MetaController::class, 'show'])
-            ->name('meta.show');
+        Route::get('tenant/meta', [MetaController::class, 'show'])->name('meta.show');
 
-        // Token login (email/phone + password) -> PAT
         Route::post('auth/login', [AuthController::class, 'tokenLogin'])
             ->middleware('throttle:tenant-auth')
             ->name('auth.login');
 
-        // Optional: self-register on tenant
         Route::post('auth/register', [AuthController::class, 'register'])
             ->middleware('throttle:tenant-auth')
             ->name('auth.register');
 
         /* ---------- Auth required (Bearer token) ---------- */
-        Route::middleware('auth:sanctum')
-            ->as('auth.')
-            ->group(function () {
+        Route::middleware('auth:sanctum')->group(function () {
+            Route::as('auth.')->group(function () {
                 Route::get('me', [AuthController::class, 'me'])->name('me');
-
-                Route::post('auth/logout', [AuthController::class, 'tokenLogout'])
-                    ->name('logout');
-
-                Route::post('auth/logout-all', [AuthController::class, 'revokeAllTokens'])
-                    ->name('logout_all');
+                Route::post('auth/logout', [AuthController::class, 'tokenLogout']);
+                Route::post('auth/logout-all', [AuthController::class, 'revokeAllTokens']);
             });
+
+            /* ---------- Users (CRUD; individual routes) ---------- */
+            Route::get('users', [UserController::class, 'index'])->name('users.index');
+            Route::post('users', [UserController::class, 'store'])->name('users.store');
+            Route::get('users/{user}', [UserController::class, 'show'])->whereNumber('user')->name('users.show');
+            Route::put('users/{user}', [UserController::class, 'update'])->whereNumber('user')->name('users.update');
+            Route::patch('users/{user}', [UserController::class, 'update'])->whereNumber('user')->name('users.patch');
+            Route::delete('users/{user}', [UserController::class, 'destroy'])->whereNumber('user')->name('users.destroy');
+        });
 
         /* ---------- v1 Fallback (JSON 404) ---------- */
         Route::fallback(fn() => response()->json(['message' => 'Not Found.'], 404))
