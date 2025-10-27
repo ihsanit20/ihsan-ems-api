@@ -71,7 +71,7 @@ class UserController extends Controller
     {
         $data = $request->validate([
             'name'     => ['required', 'string', 'max:191'],
-            'phone'    => ['required', 'string', 'max:32', Rule::unique('users', 'phone')],
+            'phone'    => ['required', 'string', 'max:32', Rule::unique(User::class, 'phone')],
             'email'    => ['nullable', 'email', 'max:191'], // unique নয়
             'role'     => ['nullable', 'string', Rule::in(self::ROLES)],
             'password' => ['nullable', 'string', 'min:6'],
@@ -105,7 +105,13 @@ class UserController extends Controller
     {
         $data = $request->validate([
             'name'         => ['sometimes', 'required', 'string', 'max:191'],
-            'phone'        => ['sometimes', 'required', 'string', 'max:32', Rule::unique('users', 'phone')->ignore($user->id)],
+            'phone'        => [
+                'sometimes',
+                'required',
+                'string',
+                'max:32',
+                Rule::unique(User::class, 'phone')->ignore($user->id)
+            ],
             'email'        => ['nullable', 'email', 'max:191'], // unique নয়
             'role'         => ['nullable', 'string', Rule::in(self::ROLES)],
             'password'     => ['nullable', 'string', 'min:6'],
