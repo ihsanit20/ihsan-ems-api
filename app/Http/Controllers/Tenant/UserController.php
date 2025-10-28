@@ -23,6 +23,79 @@ class UserController extends Controller
     ];
 
     /**
+     * Role ranks (strict hierarchy)
+     * Higher is more powerful
+     */
+    private const ROLE_RANK = [
+        'Student'    => 1,
+        'Guardian'   => 2,
+        'Teacher'    => 3,
+        'Accountant' => 3,
+        'Admin'      => 4,
+        'Owner'      => 5,
+        'Developer'  => 6,
+    ];
+
+    /** ------- helpers: hierarchy & permission checks ------- */
+
+    private static function rankOf(?string $role): int
+    {
+        return $role && isset(self::ROLE_RANK[$role]) ? self::ROLE_RANK[$role] : 0;
+    }
+
+    /**
+     * Core guard:
+     * - If self-update: allowed, but cannot change own role.
+     * - If updating others: actorRank must be strictly greater than targetRank.
+     * - If payload includes 'role':
+     *      actorRank must be strictly greater than rank(newRole).
+     */
+    private static function assertCanModify(
+        Request $request,
+        User $actor,
+        User $target,
+        array $payload,
+        bool $creating = false
+    ): void {
+        $actorRank  = self::rankOf($actor->role);
+        $targetRole = $creating
+            ? ($payload['role'] ?? 'Guardian') // creating: target not yet exists; assume payload role or default
+            : $target->role;
+
+        $targetRank = self::rankOf($targetRole);
+
+        // 1) Self vs Others
+        if (!$creating && $actor->id === $target->id) {
+            // Self update allowed (profile/password/photo...), but cannot change own role
+            if (array_key_exists('role', $payload) && $payload['role'] !== $target->role) {
+                abort(403, 'You cannot change your own role.');
+            }
+        } else {
+            // Updating others: actor must be strictly higher than target
+            if (!($actorRank > $targetRank)) {
+                abort(403, 'Forbidden: insufficient role to modify this user.');
+            }
+        }
+
+        // 2) If role is being set/changed (both create & update)
+        if (array_key_exists('role', $payload) && $payload['role'] !== null) {
+            $newRole  = (string) $payload['role'];
+            if (!in_array($newRole, self::ROLES, true)) {
+                abort(422, 'Invalid role value.');
+            }
+            $newRank = self::rankOf($newRole);
+
+            // actor must be strictly higher than the role they are assigning
+            if (!($actorRank > $newRank)) {
+                abort(403, 'Forbidden: you cannot assign this role.');
+            }
+
+            // Optional: prevent lowering/raising beyond policy—already covered by strict ranks.
+            // Example: Owner cannot make Developer because 5 > 6 (false) — auto blocked.
+        }
+    }
+
+    /**
      * GET /v1/users
      * q, role, per_page, sort_by, sort_dir সাপোর্ট করে
      */
@@ -69,6 +142,12 @@ class UserController extends Controller
     /** POST /v1/users  (password nullable; name+phone required) */
     public function store(Request $request)
     {
+        // Must be logged-in; routes layer will already require auth, but double-check
+        $actor = $request->user();
+        if (!$actor) {
+            abort(401, 'Unauthenticated.');
+        }
+
         $data = $request->validate([
             'name'     => ['required', 'string', 'max:191'],
             'phone'    => ['required', 'string', 'max:32', Rule::unique(User::class, 'phone')],
@@ -78,11 +157,15 @@ class UserController extends Controller
             'photo'    => ['nullable', 'image', 'max:2048'],
         ]);
 
+        // Hierarchy guard for CREATE (role assignment)
+        self::assertCanModify($request, $actor, new User(), $data, creating: true);
+
         $user = new User();
         $user->name  = $data['name'];
         $user->phone = $data['phone'];
         $user->email = $data['email'] ?? null;
-        // role না দিলে DB default Guardian প্রযোজ্য হবে
+
+        // role না দিলে DB default Guardian প্রযোজ্য হবে; দিলেও assertCanModify আগেই চেক করছে
         if (array_key_exists('role', $data)) {
             $user->role = $data['role'];
         }
@@ -103,6 +186,12 @@ class UserController extends Controller
     /** PUT/PATCH /v1/users/{user} */
     public function update(Request $request, User $user)
     {
+        // Must be logged-in
+        $actor = $request->user();
+        if (!$actor) {
+            abort(401, 'Unauthenticated.');
+        }
+
         $data = $request->validate([
             'name'         => ['sometimes', 'required', 'string', 'max:191'],
             'phone'        => [
@@ -119,15 +208,22 @@ class UserController extends Controller
             'remove_photo' => ['nullable', 'boolean'],
         ]);
 
+        // Hierarchy guard for UPDATE (target + optional role change)
+        self::assertCanModify($request, $actor, $user, $data, creating: false);
+
         if (array_key_exists('name', $data))  $user->name  = $data['name'];
         if (array_key_exists('phone', $data)) $user->phone = $data['phone'];
         if (array_key_exists('email', $data)) $user->email = $data['email'] ?? null;
-        if (array_key_exists('role', $data))  $user->role  = $data['role']; // null allow নয়; enum থেকে আসবে
+
+        if (array_key_exists('role', $data)) {
+            // assertCanModify already validated we may assign this role
+            $user->role  = $data['role'];
+        }
 
         if (!empty($data['password'])) {
             $user->password = Hash::make($data['password']);
         } elseif (array_key_exists('password', $data) && $data['password'] === null) {
-            // চাইলে পাসওয়ার্ড null করা যাবে
+            // চাইলে পাসওয়ার্ড null করা যাবে (policy already allowed by rank)
             $user->password = null;
         }
 
@@ -152,8 +248,17 @@ class UserController extends Controller
     }
 
     /** DELETE /v1/users/{user} */
-    public function destroy(User $user)
+    public function destroy(User $user, Request $request)
     {
+        // Must be logged-in
+        $actor = $request->user();
+        if (!$actor) {
+            abort(401, 'Unauthenticated.');
+        }
+
+        // Deleting others follows the same strict-rank rule
+        self::assertCanModify($request, $actor, $user, [], creating: false);
+
         if ($user->photo) {
             Storage::disk('public')->delete($user->photo);
         }
