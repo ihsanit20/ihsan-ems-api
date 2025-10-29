@@ -16,7 +16,7 @@ use App\Http\Controllers\Tenant\UserController;
 | রোল হায়ারার্কি (highest -> lowest):
 | Developer > Owner > Admin > Teacher, Accountant > Guardian > Student
 |
-| নীচের $ALLOW ম্যাপ ব্যবহার করে প্রতিটি প্যাকেটের জন্য সহজে role গার্ড সেট করা হয়েছে।
+| নীচের $ALLOW ম্যাপ ব্যবহার করে প্রতিটি প্যাকেটের জন্য role গার্ড সেট করা হয়েছে।
 */
 
 // ---------- Role allow lists (Developer always included on all “+” levels) ----------
@@ -67,102 +67,92 @@ Route::prefix('v1')
 
         /* ------------------------------------------------
          | DevTools Packet — Developer only
-         | (Owner ইচ্ছাকৃতভাবেই নেই)
+         | (URL prefix সরানো হয়েছে; middleware আগের মতো)
          * ------------------------------------------------ */
-        Route::middleware(['auth:sanctum', $ALLOW['DEV_ONLY']])
-            ->prefix('dev')->as('dev.')->group(function () {
-                Route::get('info', function () {
-                    return response()->json([
-                        'env' => app()->environment(),
-                        'php' => PHP_VERSION,
-                        'time' => now()->toDateTimeString(),
-                    ]);
-                })->name('info');
+        Route::middleware(['auth:sanctum', $ALLOW['DEV_ONLY']])->group(function () {
+            Route::get('info', function () {
+                return response()->json([
+                    'env'  => app()->environment(),
+                    'php'  => PHP_VERSION,
+                    'time' => now()->toDateTimeString(),
+                ]);
+            })->name('dev.info');
 
-                // উদাহরণ: টেন্যান্ট ডায়াগনস্টিক্স, মেইনটেন্যান্স টাস্ক, ইত্যাদি
-                Route::post('maintenance/run', fn() => response()->json(['ok' => true]))->name('maintenance.run');
-            });
+            Route::post('maintenance/run', fn() => response()->json(['ok' => true]))
+                ->name('dev.maintenance.run');
+        });
 
         /* ------------------------------------------------
          | Owner Suite — Owner plus (Owner, Developer)
-         | (Developer allowed, Admin/others not)
+         | (URL prefix সরানো হয়েছে)
          * ------------------------------------------------ */
-        Route::middleware(['auth:sanctum', $ALLOW['OWNER_PLUS']])
-            ->prefix('owner')->as('owner.')
-            ->group(function () {
-                Route::get('settings', fn() => response()->json(['settings' => true]))->name('settings.index');
-                Route::post('settings', fn() => response()->json(['updated' => true]))->name('settings.update');
+        Route::middleware(['auth:sanctum', $ALLOW['OWNER_PLUS']])->group(function () {
+            Route::get('settings', fn() => response()->json(['settings' => true]))->name('owner.settings.index');
+            Route::post('settings', fn() => response()->json(['updated' => true]))->name('owner.settings.update');
 
-                // Billing/plan endpoints (উদাহরণ)
-                Route::get('billing', fn() => response()->json(['billing' => []]))->name('billing.index');
-                Route::post('billing/refresh', fn() => response()->json(['ok' => true]))->name('billing.refresh');
-            });
+            Route::get('billing', fn() => response()->json(['billing' => []]))->name('owner.billing.index');
+            Route::post('billing/refresh', fn() => response()->json(['ok' => true]))->name('owner.billing.refresh');
+        });
 
         /* ------------------------------------------------
          | Admin Suite — Admin plus (Admin, Owner, Developer)
-         | এখানে Users CRUD রাখা হয়েছে
+         | Users CRUD (URL prefix সরানো হয়েছে)
          * ------------------------------------------------ */
-        Route::middleware(['auth:sanctum', $ALLOW['ADMIN_PLUS']])
-            ->prefix('admin')->as('admin.')
-            ->group(function () {
-                // Users (CRUD)
-                Route::get('users', [UserController::class, 'index'])->name('users.index');
-                Route::post('users', [UserController::class, 'store'])->name('users.store');
-                Route::get('users/{user}', [UserController::class, 'show'])->whereNumber('user')->name('users.show');
-                Route::put('users/{user}', [UserController::class, 'update'])->whereNumber('user')->name('users.update');
-                Route::patch('users/{user}', [UserController::class, 'update'])->whereNumber('user')->name('users.patch');
-                Route::delete('users/{user}', [UserController::class, 'destroy'])->whereNumber('user')->name('users.destroy');
+        Route::middleware(['auth:sanctum', $ALLOW['ADMIN_PLUS']])->group(function () {
+            // Users (CRUD) => /api/v1/users ...
+            Route::get('users', [UserController::class, 'index'])->name('users.index');
+            Route::post('users', [UserController::class, 'store'])->name('users.store');
+            Route::get('users/{user}', [UserController::class, 'show'])->whereNumber('user')->name('users.show');
+            Route::put('users/{user}', [UserController::class, 'update'])->whereNumber('user')->name('users.update');
+            Route::patch('users/{user}', [UserController::class, 'update'])->whereNumber('user')->name('users.patch');
+            Route::delete('users/{user}', [UserController::class, 'destroy'])->whereNumber('user')->name('users.destroy');
 
-                // Admin রিপোর্ট/মনিটরিং (উদাহরণ)
-                Route::get('reports/summary', fn() => response()->json(['report' => 'summary']))->name('reports.summary');
-            });
+            // Admin রিপোর্ট/মনিটরিং
+            Route::get('reports/summary', fn() => response()->json(['report' => 'summary']))->name('reports.summary');
+        });
 
         /* ------------------------------------------------
-         | Teacher Suite — Teacher plus (Teacher, Admin, Owner, Developer)
+         | Teacher Suite — Teacher plus
+         | (URL prefix সরানো হয়েছে)
          * ------------------------------------------------ */
-        Route::middleware(['auth:sanctum', $ALLOW['TEACHER_PLUS']])
-            ->prefix('teacher')->as('teacher.')
-            ->group(function () {
-                Route::get('courses', fn() => response()->json(['courses' => []]))->name('courses.index');
-                Route::post('courses', fn() => response()->json(['created' => true]))->name('courses.store');
+        Route::middleware(['auth:sanctum', $ALLOW['TEACHER_PLUS']])->group(function () {
+            Route::get('courses', fn() => response()->json(['courses' => []]))->name('teacher.courses.index');
+            Route::post('courses', fn() => response()->json(['created' => true]))->name('teacher.courses.store');
 
-                Route::get('lectures', fn() => response()->json(['lectures' => []]))->name('lectures.index');
-                Route::post('lectures', fn() => response()->json(['created' => true]))->name('lectures.store');
+            Route::get('lectures', fn() => response()->json(['lectures' => []]))->name('teacher.lectures.index');
+            Route::post('lectures', fn() => response()->json(['created' => true]))->name('teacher.lectures.store');
 
-                Route::post('exams/publish', fn() => response()->json(['published' => true]))->name('exams.publish');
-            });
+            Route::post('exams/publish', fn() => response()->json(['published' => true]))->name('teacher.exams.publish');
+        });
 
         /* ------------------------------------------------
          | Accountant Suite — Accountant plus
+         | (URL prefix সরানো হয়েছে)
          * ------------------------------------------------ */
-        Route::middleware(['auth:sanctum', $ALLOW['ACCOUNTANT_PLUS']])
-            ->prefix('finance')->as('finance.')
-            ->group(function () {
-                Route::get('invoices', fn() => response()->json(['invoices' => []]))->name('invoices.index');
-                Route::post('invoices', fn() => response()->json(['created' => true]))->name('invoices.store');
-                Route::post('reconcile', fn() => response()->json(['ok' => true]))->name('reconcile');
-            });
+        Route::middleware(['auth:sanctum', $ALLOW['ACCOUNTANT_PLUS']])->group(function () {
+            Route::get('invoices', fn() => response()->json(['invoices' => []]))->name('finance.invoices.index');
+            Route::post('invoices', fn() => response()->json(['created' => true]))->name('finance.invoices.store');
+            Route::post('reconcile', fn() => response()->json(['ok' => true]))->name('finance.reconcile');
+        });
 
         /* ------------------------------------------------
          | Guardian Suite — Guardian plus
+         | (URL prefix সরানো হয়েছে)
          * ------------------------------------------------ */
-        Route::middleware(['auth:sanctum', $ALLOW['GUARDIAN_PLUS']])
-            ->prefix('guardian')->as('guardian.')
-            ->group(function () {
-                Route::get('wards', fn() => response()->json(['wards' => []]))->name('wards.index');
-                Route::get('payments', fn() => response()->json(['payments' => []]))->name('payments.index');
-            });
+        Route::middleware(['auth:sanctum', $ALLOW['GUARDIAN_PLUS']])->group(function () {
+            Route::get('wards', fn() => response()->json(['wards' => []]))->name('guardian.wards.index');
+            Route::get('payments', fn() => response()->json(['payments' => []]))->name('guardian.payments.index');
+        });
 
         /* ------------------------------------------------
          | Student Suite — Student plus (everyone)
+         | (URL prefix সরানো হয়েছে)
          * ------------------------------------------------ */
-        Route::middleware(['auth:sanctum', $ALLOW['STUDENT_PLUS']])
-            ->prefix('student')->as('student.')
-            ->group(function () {
-                Route::get('dashboard', fn() => response()->json(['welcome' => 'student']))->name('dashboard');
-                Route::get('classes', fn() => response()->json(['classes' => []]))->name('classes.index');
-                Route::post('exams/attempt', fn() => response()->json(['attempted' => true]))->name('exams.attempt');
-            });
+        Route::middleware(['auth:sanctum', $ALLOW['STUDENT_PLUS']])->group(function () {
+            Route::get('dashboard', fn() => response()->json(['welcome' => 'student']))->name('student.dashboard');
+            Route::get('classes', fn() => response()->json(['classes' => []]))->name('student.classes.index');
+            Route::post('exams/attempt', fn() => response()->json(['attempted' => true]))->name('student.exams.attempt');
+        });
 
         /* ---------- v1 Fallback (JSON 404) ---------- */
         Route::fallback(fn() => response()->json(['message' => 'Not Found.'], 404))
