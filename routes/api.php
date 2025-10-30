@@ -3,6 +3,7 @@
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Tenant\MetaController;
 use App\Http\Controllers\Tenant\AuthController;
+use App\Http\Controllers\Tenant\InstituteProfileController;
 use App\Http\Controllers\Tenant\UserController;
 
 /*
@@ -45,6 +46,7 @@ Route::prefix('v1')
         ]))->name('ping');
 
         Route::get('tenant/meta', [MetaController::class, 'show'])->name('meta.show');
+        Route::get('institute/profile',  [InstituteProfileController::class, 'show'])->name('institute.profile.show');
 
         Route::post('auth/login', [AuthController::class, 'tokenLogin'])
             ->middleware('throttle:tenant-auth')
@@ -92,6 +94,8 @@ Route::prefix('v1')
 
             Route::get('billing', fn() => response()->json(['billing' => []]))->name('owner.billing.index');
             Route::post('billing/refresh', fn() => response()->json(['ok' => true]))->name('owner.billing.refresh');
+
+            Route::match(['put', 'patch'], 'institute/profile', [InstituteProfileController::class, 'update'])->name('institute.profile.update');
         });
 
         /* ------------------------------------------------
