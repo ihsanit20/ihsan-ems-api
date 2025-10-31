@@ -4,6 +4,7 @@ use App\Http\Controllers\Tenant\AcademicSessionController;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Tenant\MetaController;
 use App\Http\Controllers\Tenant\AuthController;
+use App\Http\Controllers\Tenant\GradeController;
 use App\Http\Controllers\Tenant\InstituteProfileController;
 use App\Http\Controllers\Tenant\UserController;
 
@@ -60,6 +61,9 @@ Route::prefix('v1')
 
         Route::get('sessions', [AcademicSessionController::class, 'index'])->name('sessions.index');
         Route::get('sessions/{session}', [AcademicSessionController::class, 'show'])->whereNumber('session')->name('sessions.show');
+
+        Route::get('grades', [GradeController::class, 'index'])->name('grades.index');
+        Route::get('grades/{grade}', [GradeController::class, 'show'])->whereNumber('grade')->name('grades.show');
 
         /* ------------------------------------------------
          | Authenticated (shared by all signed-in roles)
@@ -119,6 +123,11 @@ Route::prefix('v1')
             Route::post('sessions', [AcademicSessionController::class, 'store'])->name('sessions.store');
             Route::match(['put', 'patch'], 'sessions/{session}', [AcademicSessionController::class, 'update'])->whereNumber('session')->name('sessions.update');
             Route::delete('sessions/{session}', [AcademicSessionController::class, 'destroy'])->whereNumber('session')->name('sessions.destroy');
+
+            Route::post('grades', [GradeController::class, 'store'])->name('grades.store');
+            Route::put('grades/{grade}', [GradeController::class, 'update'])->whereNumber('grade')->name('grades.update');
+            Route::patch('grades/{grade}', [GradeController::class, 'update'])->whereNumber('grade')->name('grades.patch');
+            Route::delete('grades/{grade}', [GradeController::class, 'destroy'])->whereNumber('grade')->name('grades.destroy');
         });
 
         /* ------------------------------------------------
