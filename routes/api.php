@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Tenant\AcademicSessionController;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Tenant\MetaController;
 use App\Http\Controllers\Tenant\AuthController;
@@ -45,8 +46,6 @@ Route::prefix('v1')
             'ts' => now()->toIso8601String(),
         ]))->name('ping');
 
-        Route::get('tenant/meta', [MetaController::class, 'show'])->name('meta.show');
-        Route::get('institute/profile',  [InstituteProfileController::class, 'show'])->name('institute.profile.show');
 
         Route::post('auth/login', [AuthController::class, 'tokenLogin'])
             ->middleware('throttle:tenant-auth')
@@ -55,6 +54,12 @@ Route::prefix('v1')
         Route::post('auth/register', [AuthController::class, 'register'])
             ->middleware('throttle:tenant-auth')
             ->name('auth.register');
+
+        Route::get('tenant/meta', [MetaController::class, 'show'])->name('meta.show');
+        Route::get('institute/profile',  [InstituteProfileController::class, 'show'])->name('institute.profile.show');
+
+        Route::get('sessions', [AcademicSessionController::class, 'index'])->name('sessions.index');
+        Route::get('sessions/{session}', [AcademicSessionController::class, 'show'])->whereNumber('session')->name('sessions.show');
 
         /* ------------------------------------------------
          | Authenticated (shared by all signed-in roles)
@@ -111,8 +116,9 @@ Route::prefix('v1')
             Route::patch('users/{user}', [UserController::class, 'update'])->whereNumber('user')->name('users.patch');
             Route::delete('users/{user}', [UserController::class, 'destroy'])->whereNumber('user')->name('users.destroy');
 
-            // Admin রিপোর্ট/মনিটরিং
-            Route::get('reports/summary', fn() => response()->json(['report' => 'summary']))->name('reports.summary');
+            Route::post('sessions', [AcademicSessionController::class, 'store'])->name('sessions.store');
+            Route::match(['put', 'patch'], 'sessions/{session}', [AcademicSessionController::class, 'update'])->whereNumber('session')->name('sessions.update');
+            Route::delete('sessions/{session}', [AcademicSessionController::class, 'destroy'])->whereNumber('session')->name('sessions.destroy');
         });
 
         /* ------------------------------------------------
