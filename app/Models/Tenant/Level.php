@@ -3,12 +3,10 @@
 namespace App\Models\Tenant;
 
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 
 class Level extends Model
 {
     protected $connection = 'tenant';
-
     protected $table = 'levels';
 
     protected $fillable = [
@@ -25,19 +23,7 @@ class Level extends Model
         'updated_at' => 'datetime',
     ];
 
-    /** Grades mapped under this level (via level_grade_maps) */
-    public function grades(): BelongsToMany
-    {
-        return $this->belongsToMany(Grade::class, 'level_grade_maps', 'level_id', 'grade_id')
-            ->withTimestamps()
-            ->withPivot(['sort_order'])
-            ->orderByPivot('sort_order')
-            ->orderByRaw('level_grade_maps.sort_order IS NULL')
-            ->orderBy('level_grade_maps.sort_order')
-            ->orderBy('grades.name');
-    }
-
-    /* ---------- Scopes ---------- */
+    /* ---------- Scopes (level-only) ---------- */
     public function scopeActive($q, ?bool $active = true)
     {
         if ($active === null) return $q;

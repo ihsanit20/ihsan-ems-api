@@ -9,13 +9,13 @@ return new class extends Migration {
     {
         Schema::create('levels', function (Blueprint $table) {
             $table->id();
-            $table->string('name');                         // e.g., Primary, Secondary, Hifz
-            $table->string('code', 32)->nullable();         // e.g., PRI, SEC, HZ
+            $table->string('name');
+            $table->string('code', 32)->nullable();
             $table->unsignedSmallInteger('sort_order')->nullable();
             $table->boolean('is_active')->default(true);
             $table->timestamps();
 
-            $table->unique('name'); // tenant-wise unique
+            $table->unique('name');
         });
     }
     public function down(): void

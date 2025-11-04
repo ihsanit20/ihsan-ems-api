@@ -48,7 +48,6 @@ Route::prefix('v1')
             'ts' => now()->toIso8601String(),
         ]))->name('ping');
 
-
         Route::post('auth/login', [AuthController::class, 'tokenLogin'])
             ->middleware('throttle:tenant-auth')
             ->name('auth.login');
@@ -134,9 +133,6 @@ Route::prefix('v1')
             Route::post('levels', [LevelController::class, 'store'])->name('levels.store');
             Route::put('levels/{level}', [LevelController::class, 'update'])->whereNumber('level')->name('levels.update');
             Route::patch('levels/{level}', [LevelController::class, 'update'])->whereNumber('level')->name('levels.patch');
-
-            Route::get('levels/{level}/grades', [LevelController::class, 'listGrades'])->whereNumber('level')->name('levels.grades.index');
-            Route::put('levels/{level}/grades', [LevelController::class, 'syncGrades'])->whereNumber('level')->name('levels.grades.sync');
 
             Route::post('grades', [GradeController::class, 'store'])->name('grades.store');
             Route::put('grades/{grade}', [GradeController::class, 'update'])->whereNumber('grade')->name('grades.update');

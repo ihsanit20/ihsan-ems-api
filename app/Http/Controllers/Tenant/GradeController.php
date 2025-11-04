@@ -6,109 +6,84 @@ use App\Http\Controllers\Controller;
 use App\Models\Tenant\Grade;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
-use Illuminate\Database\QueryException;
 
 class GradeController extends Controller
 {
-    /**
-     * GET /v1/grades
-     * Query params:
-     * - q: string (search in name/code)
-     * - is_active: 0|1 (optional filter)
-     * - paginate: bool=true
-     * - per_page: int (default 20, max 200)
-     * - sort_by: id|name|sort_order|is_active|created_at|updated_at
-     * - sort_dir: asc|desc
-     */
+    /** GET /v1/grades */
     public function index(Request $request)
     {
-        $allowedSort = ['id', 'name', 'sort_order', 'is_active', 'created_at', 'updated_at'];
+        // eager loads
+        $withParam = $request->input('with');
+        $with = collect(is_array($withParam) ? $withParam : (is_string($withParam) ? explode(',', $withParam) : []))
+            ->map(fn($w) => trim((string) $w))
+            ->filter(fn($w) => in_array($w, ['level']))
+            ->values()
+            ->all();
 
-        $sortBy  = in_array($request->get('sort_by'), $allowedSort, true)
-            ? $request->get('sort_by') : 'sort_order';
+        // sorting
+        $allowedSort = ['id', 'name', 'code', 'sort_order', 'is_active', 'level_id', 'created_at', 'updated_at'];
+        $sortBy  = in_array($request->get('sort_by'), $allowedSort, true) ? $request->get('sort_by') : 'sort_order';
         $sortDir = strtolower($request->get('sort_dir', 'asc')) === 'desc' ? 'desc' : 'asc';
 
-        $query = Grade::query()
-            ->search($request->string('q'))
+        $q = Grade::query()
+            ->when($with, fn($x) => $x->with($with))
+            ->when($request->filled('level_id'), fn($x) => $x->where('level_id', (int) $request->level_id))
+            ->search($request->q)
             ->active($request->has('is_active') ? $request->boolean('is_active') : null)
             ->orderBy($sortBy, $sortDir)
             ->orderBy('name');
 
-        $paginate = $request->boolean('paginate', true);
-
-        if ($paginate) {
+        if ($request->boolean('paginate', true)) {
             $perPage = max(1, min((int) $request->get('per_page', 20), 200));
-            return $query->paginate($perPage);
+            return $q->paginate($perPage);
         }
 
-        return ['data' => $query->get()];
+        return ['data' => $q->get()];
     }
 
-    /**
-     * POST /v1/grades
-     * Body: name (required), code, sort_order, is_active
-     */
+    /** GET /v1/grades/{grade} */
+    public function show(Grade $grade, Request $request)
+    {
+        if ($request->boolean('with_level', false)) {
+            $grade->loadMissing('level');
+        }
+        return $grade;
+    }
+
+    /** POST /v1/grades */
     public function store(Request $request)
     {
         $data = $request->validate([
-            'name'       => ['required', 'string', 'max:150', Rule::unique(Grade::class, 'name')],
+            'level_id'   => ['required', 'integer', 'exists:tenant.levels,id'],
+            'name'       => ['required', 'string', 'max:255', 'unique:tenant.grades,name'],
             'code'       => ['nullable', 'string', 'max:50'],
             'sort_order' => ['nullable', 'integer', 'min:0', 'max:65535'],
             'is_active'  => ['boolean'],
         ]);
 
         $grade = Grade::create($data);
-
-        return response()->json($grade, 201);
+        return response()->json($grade->fresh(), 201);
     }
 
-    /**
-     * GET /v1/grades/{id}
-     */
-    public function show(Grade $grade)
-    {
-        return $grade;
-    }
-
-    /**
-     * PUT/PATCH /v1/grades/{id}
-     */
+    /** PUT/PATCH /v1/grades/{grade} */
     public function update(Request $request, Grade $grade)
     {
         $data = $request->validate([
-            'name'       => [
-                'sometimes',
-                'required',
-                'string',
-                'max:255',
-                Rule::unique('grades', 'name')->ignore($grade->id),
-            ],
+            'level_id'   => ['sometimes', 'required', 'integer', 'exists:tenant.levels,id'],
+            'name'       => ['sometimes', 'required', 'string', 'max:255', Rule::unique('tenant.grades', 'name')->ignore($grade->id)],
             'code'       => ['nullable', 'string', 'max:50'],
             'sort_order' => ['nullable', 'integer', 'min:0', 'max:65535'],
             'is_active'  => ['boolean'],
         ]);
 
         $grade->update($data);
-
-        return response()->json($grade);
+        return response()->json($grade->fresh());
     }
 
-    /**
-     * DELETE /v1/grades/{id}
-     */
+    /** DELETE /v1/grades/{grade} */
     public function destroy(Grade $grade)
     {
-        try {
-            $grade->delete();
-            return response()->json(['message' => 'Deleted'], 200);
-        } catch (QueryException $e) {
-            // FK constraint (e.g., cohorts.grade_id) blockage
-            if ((int) $e->getCode() === 23000) {
-                return response()->json([
-                    'message' => 'Cannot delete: grade is in use by other records.'
-                ], 409);
-            }
-            throw $e;
-        }
+        $grade->delete();
+        return response()->json(['message' => 'Deleted']);
     }
 }

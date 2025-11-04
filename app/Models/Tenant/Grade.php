@@ -3,14 +3,15 @@
 namespace App\Models\Tenant;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class Grade extends Model
 {
     protected $connection = 'tenant';
-
     protected $table = 'grades';
 
     protected $fillable = [
+        'level_id',
         'name',
         'code',
         'sort_order',
@@ -18,36 +19,41 @@ class Grade extends Model
     ];
 
     protected $casts = [
+        'level_id'   => 'integer',
         'sort_order' => 'integer',
         'is_active'  => 'boolean',
         'created_at' => 'datetime',
         'updated_at' => 'datetime',
     ];
 
-    /** Scope: active(true/false) | null = no filter */
-    public function scopeActive($query, ?bool $active = true)
+    /* ---------- Relations ---------- */
+    public function level(): BelongsTo
     {
-        if ($active === null) return $query;
-        return $query->where('is_active', $active);
+        return $this->belongsTo(Level::class);
     }
 
-    /** Scope: search by name/code */
-    public function scopeSearch($query, $term = null)
+    /* ---------- Scopes ---------- */
+    public function scopeActive($q, ?bool $active = true)
+    {
+        if ($active === null) return $q;
+        return $q->where('is_active', $active);
+    }
+
+    public function scopeSearch($q, ?string $term = null)
     {
         $term = trim((string) $term);
-        if ($term === '') return $query;
+        if ($term === '') return $q;
 
-        return $query->where(function ($q) use ($term) {
-            $q->where('name', 'like', "%{$term}%")
+        return $q->where(function ($x) use ($term) {
+            $x->where('name', 'like', "%{$term}%")
                 ->orWhere('code', 'like', "%{$term}%");
         });
     }
 
-    /** Scope: default ordering for UI */
-    public function scopeOrdered($query)
+    public function scopeOrdered($q)
     {
-        return $query->orderByRaw('sort_order IS NULL') // NULL last
-            ->orderBy('sort_order', 'asc')
-            ->orderBy('name', 'asc');
+        return $q->orderByRaw('sort_order IS NULL')
+            ->orderBy('sort_order')
+            ->orderBy('name');
     }
 }
