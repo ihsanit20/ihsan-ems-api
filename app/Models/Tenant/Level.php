@@ -7,6 +7,8 @@ use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 
 class Level extends Model
 {
+    protected $connection = 'tenant';
+
     protected $table = 'levels';
 
     protected $fillable = [
@@ -17,19 +19,21 @@ class Level extends Model
     ];
 
     protected $casts = [
-        'sort_order'  => 'integer',
-        'is_active'   => 'boolean',
-        'created_at'  => 'datetime',
-        'updated_at'  => 'datetime',
+        'sort_order' => 'integer',
+        'is_active'  => 'boolean',
+        'created_at' => 'datetime',
+        'updated_at' => 'datetime',
     ];
 
-    /** Grades mapped under this level */
+    /** Grades mapped under this level (via level_grade_maps) */
     public function grades(): BelongsToMany
     {
         return $this->belongsToMany(Grade::class, 'level_grade_maps', 'level_id', 'grade_id')
             ->withTimestamps()
             ->withPivot(['sort_order'])
             ->orderByPivot('sort_order')
+            ->orderByRaw('level_grade_maps.sort_order IS NULL')
+            ->orderBy('level_grade_maps.sort_order')
             ->orderBy('grades.name');
     }
 
@@ -44,6 +48,7 @@ class Level extends Model
     {
         $term = trim((string) $term);
         if ($term === '') return $q;
+
         return $q->where(function ($x) use ($term) {
             $x->where('name', 'like', "%{$term}%")
                 ->orWhere('code', 'like', "%{$term}%");
@@ -52,6 +57,8 @@ class Level extends Model
 
     public function scopeOrdered($q)
     {
-        return $q->orderByRaw('sort_order IS NULL')->orderBy('sort_order')->orderBy('name');
+        return $q->orderByRaw('sort_order IS NULL')
+            ->orderBy('sort_order')
+            ->orderBy('name');
     }
 }
