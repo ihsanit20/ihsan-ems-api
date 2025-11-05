@@ -56,4 +56,9 @@ class Grade extends Model
             ->orderBy('sort_order')
             ->orderBy('name');
     }
+
+    public function sessionGrades()
+    {
+        return $this->hasMany(SessionGrade::class);
+    }
 }

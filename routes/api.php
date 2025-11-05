@@ -7,6 +7,7 @@ use App\Http\Controllers\Tenant\AuthController;
 use App\Http\Controllers\Tenant\GradeController;
 use App\Http\Controllers\Tenant\InstituteProfileController;
 use App\Http\Controllers\Tenant\LevelController;
+use App\Http\Controllers\Tenant\SessionGradeController;
 use App\Http\Controllers\Tenant\UserController;
 
 /*
@@ -61,12 +62,16 @@ Route::prefix('v1')
 
         Route::get('sessions', [AcademicSessionController::class, 'index'])->name('sessions.index');
         Route::get('sessions/{session}', [AcademicSessionController::class, 'show'])->whereNumber('session')->name('sessions.show');
+        Route::get('sessions/{session}/grades', [SessionGradeController::class, 'index'])->whereNumber('session')->name('sessions.grades.index');
 
         Route::get('levels', [LevelController::class, 'index'])->name('levels.index');
         Route::get('levels/{level}', [LevelController::class, 'show'])->whereNumber('level')->name('levels.show');
 
         Route::get('grades', [GradeController::class, 'index'])->name('grades.index');
         Route::get('grades/{grade}', [GradeController::class, 'show'])->whereNumber('grade')->name('grades.show');
+
+        Route::get('session-grades', [SessionGradeController::class, 'index'])->name('session-grades.index');
+        Route::get('session-grades/{sessionGrade}', [SessionGradeController::class, 'show'])->whereNumber('sessionGrade')->name('session-grades.show');
 
         /* ------------------------------------------------
          | Authenticated (shared by all signed-in roles)
@@ -111,6 +116,8 @@ Route::prefix('v1')
 
             Route::delete('levels/{level}', [LevelController::class, 'destroy'])->whereNumber('level')->name('levels.destroy');
             Route::delete('grades/{grade}', [GradeController::class, 'destroy'])->whereNumber('grade')->name('grades.destroy');
+
+            Route::delete('session-grades/{sessionGrade}', [SessionGradeController::class, 'destroy'])->whereNumber('sessionGrade')->name('session-grades.destroy');
         });
 
         /* ------------------------------------------------
@@ -137,6 +144,9 @@ Route::prefix('v1')
             Route::post('grades', [GradeController::class, 'store'])->name('grades.store');
             Route::put('grades/{grade}', [GradeController::class, 'update'])->whereNumber('grade')->name('grades.update');
             Route::patch('grades/{grade}', [GradeController::class, 'update'])->whereNumber('grade')->name('grades.patch');
+
+            Route::post('session-grades', [SessionGradeController::class, 'store'])->name('session-grades.store');
+            Route::match(['put', 'patch'], 'session-grades/{sessionGrade}', [SessionGradeController::class, 'update'])->whereNumber('sessionGrade')->name('session-grades.update');
         });
 
         /* ------------------------------------------------
