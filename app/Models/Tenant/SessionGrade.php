@@ -3,57 +3,62 @@
 namespace App\Models\Tenant;
 
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class SessionGrade extends Model
 {
-    use HasFactory;
-
+    protected $connection = 'tenant';
     protected $table = 'session_grades';
 
     protected $fillable = [
         'academic_session_id',
         'grade_id',
+        'shift',
+        'medium',
         'capacity',
         'class_teacher_id',
+        'code',
         'meta_json',
     ];
 
     protected $casts = [
-        'capacity' => 'integer',
-        'meta_json' => 'array',
+        'capacity'   => 'integer',
+        'meta_json'  => 'array',
+        'created_at' => 'datetime',
+        'updated_at' => 'datetime',
     ];
 
-    /** Relations */
-    public function academicSession()
+    public function academicSession(): BelongsTo
     {
         return $this->belongsTo(AcademicSession::class);
     }
 
-    public function grade()
+    public function grade(): BelongsTo
     {
         return $this->belongsTo(Grade::class);
     }
 
-    public function classTeacher()
+    public function classTeacher(): BelongsTo
     {
-        // ধরে নিচ্ছি tenant users টেবিলের মডেল App\Models\Tenant\User
-        return $this->belongsTo(User::class, 'class_teacher_id');
+        return $this->belongsTo(Employee::class, 'class_teacher_id');
     }
 
-    public function sections()
+    public function sections(): HasMany
     {
-        return $this->hasMany(Section::class, 'session_grade_id');
+        return $this->hasMany(Section::class);
     }
 
-    /** Scopes (optional) */
-    public function scopeForSession($q, $sessionId)
+    /* ---- Optional scopes ---- */
+    public function scopeForSession($q, int $sessionId)
     {
         return $q->where('academic_session_id', $sessionId);
     }
-
-    public function scopeForGrade($q, $gradeId)
+    public function scopeFilter($q, ?int $gradeId = null, ?string $shift = null, ?string $medium = null)
     {
-        return $q->where('grade_id', $gradeId);
+        if ($gradeId) $q->where('grade_id', $gradeId);
+        if ($shift !== null && $shift !== '') $q->where('shift', $shift);
+        if ($medium !== null && $medium !== '') $q->where('medium', $medium);
+        return $q;
     }
 }

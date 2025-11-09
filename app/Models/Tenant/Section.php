@@ -3,11 +3,12 @@
 namespace App\Models\Tenant;
 
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class Section extends Model
 {
-    use HasFactory;
+    protected $connection = 'tenant';
+    protected $table = 'sections';
 
     protected $fillable = [
         'session_grade_id',
@@ -15,21 +16,29 @@ class Section extends Model
         'code',
         'capacity',
         'class_teacher_id',
-        'sort_order'
+        'sort_order',
     ];
 
     protected $casts = [
-        'capacity'   => 'integer',
-        'sort_order' => 'integer',
+        'capacity'    => 'integer',
+        'sort_order'  => 'integer',
+        'created_at'  => 'datetime',
+        'updated_at'  => 'datetime',
     ];
 
-    public function sessionGrade()
+    public function sessionGrade(): BelongsTo
     {
         return $this->belongsTo(SessionGrade::class);
     }
 
-    public function classTeacher()
+    public function classTeacher(): BelongsTo
     {
-        return $this->belongsTo(User::class, 'class_teacher_id');
+        return $this->belongsTo(Employee::class, 'class_teacher_id');
+    }
+
+    /* ---- Optional scopes ---- */
+    public function scopeOrdered($q)
+    {
+        return $q->orderBy('sort_order')->orderBy('id');
     }
 }
