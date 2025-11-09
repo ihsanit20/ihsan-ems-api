@@ -6,7 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Tenant\SessionGrade;
 use App\Models\Tenant\AcademicSession;
 use Illuminate\Http\Request;
-use Illuminate\Validation\Rule;
+use Illuminate\Database\Eloquent\Collection as EloquentCollection;
 
 class SessionGradeController extends Controller
 {
@@ -69,9 +69,7 @@ class SessionGradeController extends Controller
                 ->where('grade_id', $gid)
                 ->exists();
 
-            if ($dup) {
-                continue;
-            }
+            if ($dup) continue;
 
             $created[] = SessionGrade::create([
                 'academic_session_id' => $session->id,
@@ -79,9 +77,19 @@ class SessionGradeController extends Controller
             ]);
         }
 
+        if (empty($created)) {
+            return response()->json([
+                'created_count' => 0,
+                'items'         => [],
+            ], 201);
+        }
+
+        // Make an Eloquent collection so we can eager load
+        $eloquent = (new EloquentCollection($created))->load('grade');
+
         return response()->json([
-            'created_count' => count($created),
-            'items'         => collect($created)->load(['grade']),
+            'created_count' => $eloquent->count(),
+            'items'         => $eloquent,
         ], 201);
     }
 
