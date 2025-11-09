@@ -14,19 +14,13 @@ class SessionGrade extends Model
     protected $fillable = [
         'academic_session_id',
         'grade_id',
-        'shift',
-        'medium',
-        'capacity',
-        'class_teacher_id',
-        'code',
-        'meta_json',
     ];
 
     protected $casts = [
-        'capacity'   => 'integer',
-        'meta_json'  => 'array',
-        'created_at' => 'datetime',
-        'updated_at' => 'datetime',
+        'academic_session_id' => 'integer',
+        'grade_id'            => 'integer',
+        'created_at'          => 'datetime',
+        'updated_at'          => 'datetime',
     ];
 
     public function academicSession(): BelongsTo
@@ -39,26 +33,23 @@ class SessionGrade extends Model
         return $this->belongsTo(Grade::class);
     }
 
-    public function classTeacher(): BelongsTo
-    {
-        return $this->belongsTo(Employee::class, 'class_teacher_id');
-    }
-
+    // যদি Section গুলো SessionGrade-এর অধীনেই থাকে, এটি রেখে দাও
     public function sections(): HasMany
     {
         return $this->hasMany(Section::class);
     }
 
-    /* ---- Optional scopes ---- */
+    /* ---- Scopes ---- */
     public function scopeForSession($q, int $sessionId)
     {
         return $q->where('academic_session_id', $sessionId);
     }
-    public function scopeFilter($q, ?int $gradeId = null, ?string $shift = null, ?string $medium = null)
+
+    public function scopeFilter($q, ?int $gradeId = null)
     {
-        if ($gradeId) $q->where('grade_id', $gradeId);
-        if ($shift !== null && $shift !== '') $q->where('shift', $shift);
-        if ($medium !== null && $medium !== '') $q->where('medium', $medium);
+        if ($gradeId) {
+            $q->where('grade_id', $gradeId);
+        }
         return $q;
     }
 }

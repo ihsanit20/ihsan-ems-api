@@ -15,7 +15,10 @@ return new class extends Migration {
             $t->string('code')->nullable();
             $t->unsignedSmallInteger('capacity')->nullable();
 
-            $t->foreignId('class_teacher_id')->nullable()->constrained('employees')->nullOnDelete();
+            $t->foreignId('class_teacher_id')
+                ->nullable()
+                ->constrained('users')
+                ->nullOnDelete();
 
             $t->unsignedSmallInteger('sort_order')->default(0);
             $t->timestamps();

@@ -17,12 +17,14 @@ class SectionController extends Controller
         if ($req->filled('search')) {
             $s = trim((string) $req->input('search'));
             $q->where(function ($qq) use ($s) {
-                $qq->where('name', 'like', "%$s%")
-                    ->orWhere('code', 'like', "%$s%");
+                $qq->where('name', 'like', "%{$s}%")
+                    ->orWhere('code', 'like', "%{$s}%");
             });
         }
 
-        $data = $q->orderBy('sort_order')->orderBy('id')->paginate((int) $req->input('per_page', 50));
+        $data = $q->orderBy('sort_order')->orderBy('id')
+            ->paginate((int) $req->input('per_page', 50));
+
         return response()->json(['data' => $data]);
     }
 
@@ -33,19 +35,27 @@ class SectionController extends Controller
             'name'             => ['required', 'string', 'max:50'],
             'code'             => ['nullable', 'string', 'max:50'],
             'capacity'         => ['nullable', 'integer', 'min:0', 'max:65535'],
-            'class_teacher_id' => ['nullable', 'integer', 'exists:tenant.employees,id'],
+            // FIX: employees নেই, users ব্যবহার করুন
+            'class_teacher_id' => ['nullable', 'integer', 'exists:tenant.users,id'],
             'sort_order'       => ['nullable', 'integer', 'min:0', 'max:65535'],
         ]);
 
         $exists = Section::where('session_grade_id', $sessionGrade->id)
             ->where('name', $val['name'])
             ->exists();
+
         if ($exists) {
-            return response()->json(['message' => 'Section with this name already exists in this class.'], 422);
+            return response()->json([
+                'message' => 'Section with this name already exists in this class.'
+            ], 422);
         }
 
+        // $val এ sort_order থাকলে সেটাও যাবে (array union নয়, merge ব্যবহার আরও স্পষ্ট হলেও এখানে প্রয়োজন নেই)
         $section = Section::create($val + ['session_grade_id' => $sessionGrade->id]);
-        return response()->json(['data' => $section->load('classTeacher')], 201);
+
+        return response()->json([
+            'data' => $section->load('classTeacher')
+        ], 201);
     }
 
     // POST /api/tenant/session-classes/{sessionGrade}/sections/bulk
@@ -55,10 +65,12 @@ class SectionController extends Controller
             'names'            => ['required', 'array', 'min:1'],
             'names.*'          => ['string', 'max:50'],
             'capacity'         => ['nullable', 'integer', 'min:0', 'max:65535'],
-            'class_teacher_id' => ['nullable', 'integer', 'exists:tenant.employees,id'],
+            // FIX: employees নেই, users ব্যবহার করুন
+            'class_teacher_id' => ['nullable', 'integer', 'exists:tenant.users,id'],
         ]);
 
         $created = [];
+
         foreach ($val['names'] as $i => $raw) {
             $name = trim($raw);
             if ($name === '') continue;
@@ -66,6 +78,7 @@ class SectionController extends Controller
             $dup = Section::where('session_grade_id', $sessionGrade->id)
                 ->where('name', $name)
                 ->exists();
+
             if ($dup) continue;
 
             $created[] = Section::create([
@@ -90,7 +103,8 @@ class SectionController extends Controller
             'name'             => ['sometimes', 'string', 'max:50'],
             'code'             => ['nullable', 'string', 'max:50'],
             'capacity'         => ['nullable', 'integer', 'min:0', 'max:65535'],
-            'class_teacher_id' => ['nullable', 'integer', 'exists:tenant.employees,id'],
+            // FIX: employees নেই, users ব্যবহার করুন
+            'class_teacher_id' => ['nullable', 'integer', 'exists:tenant.users,id'],
             'sort_order'       => ['nullable', 'integer', 'min:0', 'max:65535'],
         ]);
 
@@ -99,13 +113,19 @@ class SectionController extends Controller
                 ->where('name', $val['name'])
                 ->where('id', '!=', $section->id)
                 ->exists();
+
             if ($dup) {
-                return response()->json(['message' => 'Another section with this name already exists in this class.'], 422);
+                return response()->json([
+                    'message' => 'Another section with this name already exists in this class.'
+                ], 422);
             }
         }
 
         $section->update($val);
-        return response()->json(['data' => $section->load('classTeacher')]);
+
+        return response()->json([
+            'data' => $section->load('classTeacher')
+        ]);
     }
 
     // DELETE /api/tenant/sections/{section}
@@ -119,9 +139,9 @@ class SectionController extends Controller
     public function reorder(SessionGrade $sessionGrade, Request $req)
     {
         $val = $req->validate([
-            'items'                 => ['required', 'array', 'min:1'],
-            'items.*.id'            => ['required', 'integer', 'exists:tenant.sections,id'],
-            'items.*.sort_order'    => ['required', 'integer', 'min:0', 'max:65535'],
+            'items'              => ['required', 'array', 'min:1'],
+            'items.*.id'         => ['required', 'integer', 'exists:tenant.sections,id'],
+            'items.*.sort_order' => ['required', 'integer', 'min:0', 'max:65535'],
         ]);
 
         foreach ($val['items'] as $item) {

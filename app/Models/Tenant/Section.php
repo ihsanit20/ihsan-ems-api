@@ -20,10 +20,10 @@ class Section extends Model
     ];
 
     protected $casts = [
-        'capacity'    => 'integer',
-        'sort_order'  => 'integer',
-        'created_at'  => 'datetime',
-        'updated_at'  => 'datetime',
+        'capacity'   => 'integer',
+        'sort_order' => 'integer',
+        'created_at' => 'datetime',
+        'updated_at' => 'datetime',
     ];
 
     public function sessionGrade(): BelongsTo
@@ -31,9 +31,10 @@ class Section extends Model
         return $this->belongsTo(SessionGrade::class);
     }
 
+    // FIX: employees নেই → users টেবিল মডেল ব্যবহার করুন
     public function classTeacher(): BelongsTo
     {
-        return $this->belongsTo(Employee::class, 'class_teacher_id');
+        return $this->belongsTo(User::class, 'class_teacher_id');
     }
 
     /* ---- Optional scopes ---- */

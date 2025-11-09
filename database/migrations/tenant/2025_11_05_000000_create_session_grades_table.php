@@ -23,20 +23,6 @@ return new class extends Migration
                 ->cascadeOnUpdate()
                 ->restrictOnDelete();
 
-            // Class capacity for this Session+Grade
-            $table->unsignedSmallInteger('capacity')->default(0);
-
-            // Optional: class teacher for the whole SessionGrade
-            // Assumes tenant 'users' table exists
-            $table->foreignId('class_teacher_id')
-                ->nullable()
-                ->constrained('users')
-                ->nullOnDelete()
-                ->cascadeOnUpdate();
-
-            // Free-form meta (e.g., room info, remarks, custom flags)
-            $table->json('meta_json')->nullable();
-
             $table->timestamps();
 
             // Prevent duplicate openings of the same Grade within the same Session
