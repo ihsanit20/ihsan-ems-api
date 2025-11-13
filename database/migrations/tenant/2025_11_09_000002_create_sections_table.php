@@ -20,7 +20,7 @@ return new class extends Migration {
                 ->constrained('users')
                 ->nullOnDelete();
 
-            $t->unsignedSmallInteger('sort_order')->default(0);
+            $t->unsignedSmallInteger('sort_order')->nullable();
             $t->timestamps();
 
             $t->unique(['session_grade_id', 'name'], 'uniq_section_name_per_class');
