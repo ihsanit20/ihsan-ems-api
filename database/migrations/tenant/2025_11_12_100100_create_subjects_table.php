@@ -13,7 +13,7 @@ return new class extends Migration {
             $table->foreignId('grade_id')
                 ->constrained('grades')
                 ->cascadeOnUpdate()
-                ->restrictOnDelete(); // গ্রেড ডিলিট হলে সাবজেক্ট থাকলে ব্লক হবে
+                ->restrictOnDelete();
 
             $table->string('name');
             $table->string('code');
@@ -21,7 +21,6 @@ return new class extends Migration {
 
             $table->timestamps();
 
-            // গ্রেডের ভেতরে কোড ইউনিক
             $table->unique(['grade_id', 'code']);
             $table->index('grade_id');
         });

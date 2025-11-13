@@ -11,7 +11,7 @@ return new class extends Migration {
             $t->id();
             $t->foreignId('session_grade_id')->constrained('session_grades')->cascadeOnDelete();
 
-            $t->string('name');     // e.g., A/B/ح
+            $t->string('name');
             $t->string('code')->nullable();
             $t->unsignedSmallInteger('capacity')->nullable();
 

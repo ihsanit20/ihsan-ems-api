@@ -22,7 +22,8 @@ class SubjectController extends Controller
                         ->orWhere('code', 'like', "%{$term}%");
                 });
             })
-            ->orderBy('grade_id')->orderBy('name');
+            ->orderBy('grade_id')
+            ->orderBy('name');
 
         return $q->paginate($req->integer('per_page', 50));
     }
@@ -30,13 +31,20 @@ class SubjectController extends Controller
     public function store(Request $req)
     {
         $data = $req->validate([
-            'grade_id'  => ['required', 'exists:grades,id'],
+            'grade_id'  => [
+                'required',
+                // 🔹 tenant connection ব্যবহার করে grades টেবিল চেক
+                Rule::exists('tenant.grades', 'id'),
+            ],
             'name'      => ['required', 'string', 'max:190'],
             'code'      => [
                 'required',
                 'string',
                 'max:100',
-                Rule::unique('subjects')->where(fn($q) => $q->where('grade_id', $req->grade_id))
+                // 🔹 tenant.subjects এ unique
+                Rule::unique('tenant.subjects')->where(
+                    fn($q) => $q->where('grade_id', $req->grade_id)
+                ),
             ],
             'is_active' => ['sometimes', 'boolean'],
         ]);
@@ -48,15 +56,25 @@ class SubjectController extends Controller
     public function update(Request $req, Subject $subject)
     {
         $data = $req->validate([
-            'grade_id'  => ['sometimes', 'exists:grades,id'],
+            'grade_id'  => [
+                'sometimes',
+                // 🔹 update-এও tenant.grades এ exists
+                Rule::exists('tenant.grades', 'id'),
+            ],
             'name'      => ['sometimes', 'string', 'max:190'],
             'code'      => [
                 'sometimes',
                 'string',
                 'max:100',
-                Rule::unique('subjects')
+                Rule::unique('tenant.subjects')
                     ->ignore($subject->id)
-                    ->where(fn($q) => $q->where('grade_id', $req->input('grade_id', $subject->grade_id)))
+                    ->where(
+                        fn($q) =>
+                        $q->where(
+                            'grade_id',
+                            $req->input('grade_id', $subject->grade_id)
+                        )
+                    ),
             ],
             'is_active' => ['sometimes', 'boolean'],
         ]);
