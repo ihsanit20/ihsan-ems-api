@@ -41,9 +41,8 @@ class Fee extends Model
             && $this->recurring_cycle === 'monthly';
     }
 
-    // পরে যখন SessionFee মডেল করবে তখন আনকমেন্ট করে দিতে পারো
-    // public function sessionFees()
-    // {
-    //     return $this->hasMany(SessionFee::class);
-    // }
+    public function sessionFees()
+    {
+        return $this->hasMany(SessionFee::class);
+    }
 }

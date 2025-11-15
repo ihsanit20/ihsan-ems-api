@@ -15,6 +15,7 @@ use App\Http\Controllers\Tenant\SubjectController;
 use App\Http\Controllers\Tenant\SectionController;
 use App\Http\Controllers\Tenant\SessionSubjectController;
 use App\Http\Controllers\Tenant\FeeController;
+use App\Http\Controllers\Tenant\SessionFeeController;
 
 /*
 |--------------------------------------------------------------------------
@@ -106,6 +107,13 @@ Route::prefix('v1')
             ->whereNumber('fee')
             ->name('fees.show');
 
+        Route::get('session-fees', [SessionFeeController::class, 'index'])
+            ->name('session-fees.index');
+
+        Route::get('session-fees/{sessionFee}', [SessionFeeController::class, 'show'])
+            ->whereNumber('sessionFee')
+            ->name('session-fees.show');
+
         /* ------------------------------------------------
          | Authenticated (shared by all signed-in roles)
          * ------------------------------------------------ */
@@ -164,6 +172,10 @@ Route::prefix('v1')
             Route::delete('fees/{fee}', [FeeController::class, 'destroy'])
                 ->whereNumber('fee')
                 ->name('fees.destroy');
+
+            Route::delete('session-fees/{sessionFee}', [SessionFeeController::class, 'destroy'])
+                ->whereNumber('sessionFee')
+                ->name('session-fees.destroy');
         });
 
         /* ------------------------------------------------
@@ -242,6 +254,13 @@ Route::prefix('v1')
             Route::patch('fees/{fee}', [FeeController::class, 'update'])
                 ->whereNumber('fee')
                 ->name('fees.patch');
+
+            Route::post('session-fees', [SessionFeeController::class, 'store'])
+                ->name('session-fees.store');
+
+            Route::match(['put', 'patch'], 'session-fees/{sessionFee}', [SessionFeeController::class, 'update'])
+                ->whereNumber('sessionFee')
+                ->name('session-fees.update');
         });
 
         /* ------------------------------------------------
