@@ -11,9 +11,9 @@ use App\Http\Controllers\Tenant\GradeController;
 use App\Http\Controllers\Tenant\InstituteProfileController;
 use App\Http\Controllers\Tenant\AcademicSessionController;
 use App\Http\Controllers\Tenant\SessionGradeController;
-use App\Http\Controllers\Tenant\SectionController;
 use App\Http\Controllers\Tenant\SubjectController;
 use App\Http\Controllers\Tenant\SubjectSessionController;
+use App\Http\Controllers\Tenant\SectionController; // ✅ NEW
 
 /*
 |--------------------------------------------------------------------------
@@ -98,6 +98,15 @@ Route::prefix('v1')
             ->whereNumber('session')
             ->name('sessions.subjects.index');
 
+        // ✅ NEW: Sections public read (index + show)
+        // index: /api/v1/sections?session_grade_id=123&search=A&per_page=25
+        Route::get('sections', [SectionController::class, 'index'])
+            ->name('sections.index');
+
+        Route::get('sections/{section}', [SectionController::class, 'show'])
+            ->whereNumber('section')
+            ->name('sections.show');
+
         /* ------------------------------------------------
          | Authenticated (shared by all signed-in roles)
          * ------------------------------------------------ */
@@ -147,6 +156,11 @@ Route::prefix('v1')
             // Owner can hard-delete a session-grade
             Route::delete('session-grades/{sessionGrade}', [SessionGradeController::class, 'destroy'])
                 ->whereNumber('sessionGrade')->name('session-grades.destroy');
+
+            // ✅ NEW: Owner can hard-delete a section
+            Route::delete('sections/{section}', [SectionController::class, 'destroy'])
+                ->whereNumber('section')
+                ->name('sections.destroy');
         });
 
         /* ------------------------------------------------
@@ -183,24 +197,6 @@ Route::prefix('v1')
             Route::match(['put', 'patch'], 'session-classes/{sessionGrade}', [SessionGradeController::class, 'update'])
                 ->whereNumber('sessionGrade')->name('session-classes.update');
 
-            Route::get('session-classes/{sessionGrade}/sections', [SectionController::class, 'index'])
-                ->whereNumber('sessionGrade')->name('session-classes.sections.index');
-
-            Route::post('session-classes/{sessionGrade}/sections', [SectionController::class, 'store'])
-                ->whereNumber('sessionGrade')->name('session-classes.sections.store');
-
-            Route::post('session-classes/{sessionGrade}/sections/bulk', [SectionController::class, 'bulkStore'])
-                ->whereNumber('sessionGrade')->name('session-classes.sections.bulk-store');
-
-            Route::match(['put', 'patch'], 'sections/{section}', [SectionController::class, 'update'])
-                ->whereNumber('section')->name('sections.update');
-
-            Route::delete('sections/{section}', [SectionController::class, 'destroy'])
-                ->whereNumber('section')->name('sections.destroy');
-
-            Route::patch('session-classes/{sessionGrade}/sections/reorder', [SectionController::class, 'reorder'])
-                ->whereNumber('sessionGrade')->name('session-classes.sections.reorder');
-
             Route::post('subjects', [SubjectController::class, 'store'])
                 ->name('subjects.store');
 
@@ -222,6 +218,14 @@ Route::prefix('v1')
             Route::delete('subject-sessions/{subjectSession}', [SubjectSessionController::class, 'destroy'])
                 ->whereNumber('subjectSession')
                 ->name('subject-sessions.destroy');
+
+            // ✅ NEW: Sections create + update (Admin+)
+            Route::post('sections', [SectionController::class, 'store'])
+                ->name('sections.store');
+
+            Route::match(['put', 'patch'], 'sections/{section}', [SectionController::class, 'update'])
+                ->whereNumber('section')
+                ->name('sections.update');
         });
 
         /* ------------------------------------------------
