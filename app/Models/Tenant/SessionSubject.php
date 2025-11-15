@@ -9,13 +9,13 @@ class SessionSubject extends Model
 {
     use HasFactory;
 
-    // Tenant DB connection
     protected $connection = 'tenant';
+    protected $table = 'session_subjects';
 
     protected $fillable = [
         'session_id',
         'subject_id',
-        'order_index',
+        'sort_order',
         'book_name',
     ];
 
