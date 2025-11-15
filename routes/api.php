@@ -12,8 +12,9 @@ use App\Http\Controllers\Tenant\InstituteProfileController;
 use App\Http\Controllers\Tenant\AcademicSessionController;
 use App\Http\Controllers\Tenant\SessionGradeController;
 use App\Http\Controllers\Tenant\SubjectController;
-use App\Http\Controllers\Tenant\SectionController; // ✅
+use App\Http\Controllers\Tenant\SectionController;
 use App\Http\Controllers\Tenant\SessionSubjectController;
+use App\Http\Controllers\Tenant\FeeController;
 
 /*
 |--------------------------------------------------------------------------
@@ -89,13 +90,21 @@ Route::prefix('v1')
             ->whereNumber('session')
             ->name('sessions.subjects.index');
 
-        // ✅ Sections public read (index + show)
+        // Sections public read (index + show)
         Route::get('sections', [SectionController::class, 'index'])
             ->name('sections.index');
 
         Route::get('sections/{section}', [SectionController::class, 'show'])
             ->whereNumber('section')
             ->name('sections.show');
+
+        // Fees public read (index + show) – read-only
+        Route::get('fees', [FeeController::class, 'index'])
+            ->name('fees.index');
+
+        Route::get('fees/{fee}', [FeeController::class, 'show'])
+            ->whereNumber('fee')
+            ->name('fees.show');
 
         /* ------------------------------------------------
          | Authenticated (shared by all signed-in roles)
@@ -146,10 +155,15 @@ Route::prefix('v1')
             Route::delete('session-grades/{sessionGrade}', [SessionGradeController::class, 'destroy'])
                 ->whereNumber('sessionGrade')->name('session-grades.destroy');
 
-            // ✅ Owner can hard-delete a section
+            // Owner can hard-delete a section
             Route::delete('sections/{section}', [SectionController::class, 'destroy'])
                 ->whereNumber('section')
                 ->name('sections.destroy');
+
+            // Owner can hard-delete a fee
+            Route::delete('fees/{fee}', [FeeController::class, 'destroy'])
+                ->whereNumber('fee')
+                ->name('fees.destroy');
         });
 
         /* ------------------------------------------------
@@ -200,7 +214,7 @@ Route::prefix('v1')
             Route::post('session-subjects', [SessionSubjectController::class, 'store'])
                 ->name('session-subjects.store');
 
-            // 🔁 এখানে মূল আপডেট: {subjectSession} → {sessionSubject}
+            // {subjectSession} → {sessionSubject}
             Route::match(['put', 'patch'], 'session-subjects/{sessionSubject}', [SessionSubjectController::class, 'update'])
                 ->whereNumber('sessionSubject')
                 ->name('session-subjects.update');
@@ -209,13 +223,25 @@ Route::prefix('v1')
                 ->whereNumber('sessionSubject')
                 ->name('session-subjects.destroy');
 
-            // ✅ Sections create + update (Admin+)
+            // Sections create + update (Admin+)
             Route::post('sections', [SectionController::class, 'store'])
                 ->name('sections.store');
 
             Route::match(['put', 'patch'], 'sections/{section}', [SectionController::class, 'update'])
                 ->whereNumber('section')
                 ->name('sections.update');
+
+            // Fees create + update (Admin+)
+            Route::post('fees', [FeeController::class, 'store'])
+                ->name('fees.store');
+
+            Route::put('fees/{fee}', [FeeController::class, 'update'])
+                ->whereNumber('fee')
+                ->name('fees.update');
+
+            Route::patch('fees/{fee}', [FeeController::class, 'update'])
+                ->whereNumber('fee')
+                ->name('fees.patch');
         });
 
         /* ------------------------------------------------

@@ -4,7 +4,7 @@ namespace App\Http\Controllers\Tenant;
 
 use App\Http\Controllers\Controller;
 use App\Models\Tenant\Subject;
-use App\Models\Tenant\SubjectSession;
+use App\Models\Tenant\SessionSubject;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 
@@ -86,7 +86,7 @@ class SubjectController extends Controller
     public function destroy(Subject $subject)
     {
         // সেফটি: সেশনে লিঙ্ক থাকলে ব্লক
-        if (SubjectSession::where('subject_id', $subject->id)->exists()) {
+        if (SessionSubject::where('subject_id', $subject->id)->exists()) {
             return response()->json([
                 'message' => 'Cannot delete: subject is used in one or more sessions.'
             ], 409);
