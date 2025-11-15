@@ -7,7 +7,7 @@ use Illuminate\Support\Facades\Schema;
 return new class extends Migration {
     public function up(): void
     {
-        Schema::create('subject_sessions', function (Blueprint $table) {
+        Schema::create('session_subjects', function (Blueprint $table) {
             $table->id();
 
             $table->foreignId('session_id')

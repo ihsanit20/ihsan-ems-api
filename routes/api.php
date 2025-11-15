@@ -12,25 +12,16 @@ use App\Http\Controllers\Tenant\InstituteProfileController;
 use App\Http\Controllers\Tenant\AcademicSessionController;
 use App\Http\Controllers\Tenant\SessionGradeController;
 use App\Http\Controllers\Tenant\SubjectController;
-use App\Http\Controllers\Tenant\SubjectSessionController;
-use App\Http\Controllers\Tenant\SectionController; // ✅ NEW
+use App\Http\Controllers\Tenant\SectionController; // ✅
+use App\Http\Controllers\Tenant\SessionSubjectController;
 
 /*
 |--------------------------------------------------------------------------
 | API Routes (v1) — Role "Packets"
 |--------------------------------------------------------------------------
-| Prereq:
-| - bootstrap/app.php এ $middleware->alias([...]) এর মধ্যে 'role' নিবন্ধন করা আছে।
-|   উদাহরণ: $middleware->alias(['role' => \App\Http\Middleware\EnsureRole::class, ...]);
-|
-| রোল হায়ারার্কি (highest -> lowest):
-| Developer > Owner > Admin > Teacher, Accountant > Guardian > Student
-|
-| নীচের $ALLOW ম্যাপ ব্যবহার করে প্রতিটি প্যাকেটের জন্য role গার্ড সেট করা হয়েছে।
 */
 
 $ALLOW = [
-    // Only Developer
     'DEV_ONLY'        => 'role:Developer',
     'OWNER_PLUS'      => 'role:Developer,Owner',
     'ADMIN_PLUS'      => 'role:Developer,Owner,Admin',
@@ -88,18 +79,17 @@ Route::prefix('v1')
         Route::get('subjects', [SubjectController::class, 'index'])
             ->name('subjects.index');
 
-        Route::get('subject-sessions', [SubjectSessionController::class, 'index'])
-            ->name('subject-sessions.index');
+        Route::get('session-subjects', [SessionSubjectController::class, 'index'])
+            ->name('session-subjects.index');
 
-        Route::get('sessions/{session}/subjects', function (int $session, Request $req, SubjectSessionController $ctrl) {
+        Route::get('sessions/{session}/subjects', function (int $session, Request $req, SessionSubjectController $ctrl) {
             $req->merge(['session_id' => $session]);
             return $ctrl->index($req);
         })
             ->whereNumber('session')
             ->name('sessions.subjects.index');
 
-        // ✅ NEW: Sections public read (index + show)
-        // index: /api/v1/sections?session_grade_id=123&search=A&per_page=25
+        // ✅ Sections public read (index + show)
         Route::get('sections', [SectionController::class, 'index'])
             ->name('sections.index');
 
@@ -153,11 +143,10 @@ Route::prefix('v1')
             Route::delete('grades/{grade}', [GradeController::class, 'destroy'])
                 ->whereNumber('grade')->name('grades.destroy');
 
-            // Owner can hard-delete a session-grade
             Route::delete('session-grades/{sessionGrade}', [SessionGradeController::class, 'destroy'])
                 ->whereNumber('sessionGrade')->name('session-grades.destroy');
 
-            // ✅ NEW: Owner can hard-delete a section
+            // ✅ Owner can hard-delete a section
             Route::delete('sections/{section}', [SectionController::class, 'destroy'])
                 ->whereNumber('section')
                 ->name('sections.destroy');
@@ -208,18 +197,19 @@ Route::prefix('v1')
                 ->whereNumber('subject')
                 ->name('subjects.destroy');
 
-            Route::post('subject-sessions', [SubjectSessionController::class, 'store'])
-                ->name('subject-sessions.store');
+            Route::post('session-subjects', [SessionSubjectController::class, 'store'])
+                ->name('session-subjects.store');
 
-            Route::match(['put', 'patch'], 'subject-sessions/{subjectSession}', [SubjectSessionController::class, 'update'])
-                ->whereNumber('subjectSession')
-                ->name('subject-sessions.update');
+            // 🔁 এখানে মূল আপডেট: {subjectSession} → {sessionSubject}
+            Route::match(['put', 'patch'], 'session-subjects/{sessionSubject}', [SessionSubjectController::class, 'update'])
+                ->whereNumber('sessionSubject')
+                ->name('session-subjects.update');
 
-            Route::delete('subject-sessions/{subjectSession}', [SubjectSessionController::class, 'destroy'])
-                ->whereNumber('subjectSession')
-                ->name('subject-sessions.destroy');
+            Route::delete('session-subjects/{sessionSubject}', [SessionSubjectController::class, 'destroy'])
+                ->whereNumber('sessionSubject')
+                ->name('session-subjects.destroy');
 
-            // ✅ NEW: Sections create + update (Admin+)
+            // ✅ Sections create + update (Admin+)
             Route::post('sections', [SectionController::class, 'store'])
                 ->name('sections.store');
 

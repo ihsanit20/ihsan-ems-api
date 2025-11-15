@@ -5,7 +5,7 @@ namespace App\Models\Tenant;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
-class SubjectSession extends Model
+class SessionSubject extends Model
 {
     use HasFactory;
 

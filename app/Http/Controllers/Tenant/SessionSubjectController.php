@@ -3,20 +3,21 @@
 namespace App\Http\Controllers\Tenant;
 
 use App\Http\Controllers\Controller;
-use App\Models\Tenant\SubjectSession;
+use App\Models\Tenant\SessionSubject;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 
-class SubjectSessionController extends Controller
+class SessionSubjectController extends Controller
 {
     public function index(Request $req)
     {
-        $q = SubjectSession::query()
+        $q = SessionSubject::query()
             ->with(['subject', 'academicSession'])
             ->when($req->filled('session_id'), fn($qq) => $qq->where('session_id', $req->integer('session_id')))
             ->when($req->filled('subject_id'), fn($qq) => $qq->where('subject_id', $req->integer('subject_id')))
-            ->orderBy('session_id')->orderBy('order_index');
+            ->orderBy('session_id')
+            ->orderBy('order_index');
 
         return $q->paginate($req->integer('per_page', 50));
     }
@@ -38,8 +39,7 @@ class SubjectSessionController extends Controller
             'book_name'   => ['nullable', 'string', 'max:190'],
         ]);
 
-        // (ঐচ্ছিক কিন্তু পরামর্শযোগ্য) সেফটি: subject-এর grade কি সেশনে খোলা আছে?
-        // যদি session_grades টেবিল থাকে:
+        // সেফটি: subject-এর grade কি সেশনে খোলা আছে?
         $gradeId = DB::table('subjects')->where('id', $data['subject_id'])->value('grade_id');
         if ($gradeId) {
             $opened = DB::table('session_grades')
@@ -54,14 +54,14 @@ class SubjectSessionController extends Controller
             }
         }
 
-        $m = SubjectSession::create($data + [
+        $m = SessionSubject::create($data + [
             'order_index' => $data['order_index'] ?? 0,
         ]);
 
         return response()->json($m->load(['subject', 'academicSession']), 201);
     }
 
-    public function update(Request $req, SubjectSession $subjectSession)
+    public function update(Request $req, SessionSubject $sessionSubject)
     {
         $data = $req->validate([
             'session_id'  => ['sometimes', 'exists:academic_sessions,id'],
@@ -69,17 +69,20 @@ class SubjectSessionController extends Controller
                 'sometimes',
                 'exists:subjects,id',
                 Rule::unique('subject_sessions')
-                    ->ignore($subjectSession->id)
-                    ->where(fn($q) => $q->where('session_id', $req->input('session_id', $subjectSession->session_id)))
+                    ->ignore($sessionSubject->id)
+                    ->where(fn($q) => $q->where(
+                        'session_id',
+                        $req->input('session_id', $sessionSubject->session_id)
+                    ))
             ],
             'order_index' => ['sometimes', 'integer', 'min:0'],
             'book_name'   => ['nullable', 'string', 'max:190'],
         ]);
 
-        // সেফটি (উপরের মতো) — যদি session_id/subject_id বদলায়
+        // সেফটি — যদি session_id/subject_id বদলায়
         if (isset($data['session_id']) || isset($data['subject_id'])) {
-            $sessionId = $data['session_id'] ?? $subjectSession->session_id;
-            $subjectId = $data['subject_id'] ?? $subjectSession->subject_id;
+            $sessionId = $data['session_id'] ?? $sessionSubject->session_id;
+            $subjectId = $data['subject_id'] ?? $sessionSubject->subject_id;
 
             $gradeId = DB::table('subjects')->where('id', $subjectId)->value('grade_id');
             if ($gradeId) {
@@ -96,13 +99,13 @@ class SubjectSessionController extends Controller
             }
         }
 
-        $subjectSession->update($data);
-        return $subjectSession->fresh(['subject', 'academicSession']);
+        $sessionSubject->update($data);
+        return $sessionSubject->fresh(['subject', 'academicSession']);
     }
 
-    public function destroy(SubjectSession $subjectSession)
+    public function destroy(SessionSubject $sessionSubject)
     {
-        $subjectSession->delete();
+        $sessionSubject->delete();
         return response()->noContent();
     }
 }
