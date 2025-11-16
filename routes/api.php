@@ -16,6 +16,7 @@ use App\Http\Controllers\Tenant\SectionController;
 use App\Http\Controllers\Tenant\SessionSubjectController;
 use App\Http\Controllers\Tenant\FeeController;
 use App\Http\Controllers\Tenant\SessionFeeController;
+use App\Http\Controllers\Tenant\AdmissionApplicationController;
 
 /*
 |--------------------------------------------------------------------------
@@ -113,6 +114,13 @@ Route::prefix('v1')
         Route::get('session-fees/{sessionFee}', [SessionFeeController::class, 'show'])
             ->whereNumber('sessionFee')
             ->name('session-fees.show');
+
+        // Admission applications – public meta + form submit
+        Route::get('admission-applications/meta', [AdmissionApplicationController::class, 'formMeta'])
+            ->name('admission-applications.meta');
+
+        Route::post('admission-applications', [AdmissionApplicationController::class, 'store'])
+            ->name('admission-applications.store');
 
         /* ------------------------------------------------
          | Authenticated (shared by all signed-in roles)
@@ -226,7 +234,6 @@ Route::prefix('v1')
             Route::post('session-subjects', [SessionSubjectController::class, 'store'])
                 ->name('session-subjects.store');
 
-            // {subjectSession} → {sessionSubject}
             Route::match(['put', 'patch'], 'session-subjects/{sessionSubject}', [SessionSubjectController::class, 'update'])
                 ->whereNumber('sessionSubject')
                 ->name('session-subjects.update');
@@ -261,6 +268,33 @@ Route::prefix('v1')
             Route::match(['put', 'patch'], 'session-fees/{sessionFee}', [SessionFeeController::class, 'update'])
                 ->whereNumber('sessionFee')
                 ->name('session-fees.update');
+
+            // Admission applications (Admin)
+            Route::get('admission-applications', [AdmissionApplicationController::class, 'index'])
+                ->name('admission-applications.index');
+
+            Route::get('admission-applications/stats', [AdmissionApplicationController::class, 'stats'])
+                ->name('admission-applications.stats');
+
+            Route::get('admission-applications/{id}', [AdmissionApplicationController::class, 'show'])
+                ->whereNumber('id')
+                ->name('admission-applications.show');
+
+            Route::match(['put', 'patch'], 'admission-applications/{id}', [AdmissionApplicationController::class, 'update'])
+                ->whereNumber('id')
+                ->name('admission-applications.update');
+
+            Route::delete('admission-applications/{id}', [AdmissionApplicationController::class, 'destroy'])
+                ->whereNumber('id')
+                ->name('admission-applications.destroy');
+
+            Route::post('admission-applications/{id}/status', [AdmissionApplicationController::class, 'updateStatus'])
+                ->whereNumber('id')
+                ->name('admission-applications.update-status');
+
+            Route::post('admission-applications/{id}/admit', [AdmissionApplicationController::class, 'admit'])
+                ->whereNumber('id')
+                ->name('admission-applications.admit');
         });
 
         /* ------------------------------------------------
@@ -291,6 +325,10 @@ Route::prefix('v1')
         Route::middleware(['auth:sanctum', $ALLOW['GUARDIAN_PLUS']])->group(function () {
             Route::get('wards', fn() => response()->json(['wards' => []]))->name('guardian.wards.index');
             Route::get('payments', fn() => response()->json(['payments' => []]))->name('guardian.payments.index');
+
+            // Guardian + others: view own applications
+            Route::get('admission-applications/my', [AdmissionApplicationController::class, 'myApplications'])
+                ->name('admission-applications.my');
         });
 
         /* ------------------------------------------------
