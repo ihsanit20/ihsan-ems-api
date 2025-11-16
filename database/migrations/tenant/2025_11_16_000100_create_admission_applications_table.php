@@ -89,7 +89,10 @@ return new class extends Migration {
 
             $table->timestamps();
 
-            $table->index(['academic_session_id', 'session_grade_id']);
+            $table->index(
+                ['academic_session_id', 'session_grade_id'],
+                'idx_adm_app_session_grade'
+            );
             $table->index(['status']);
         });
     }

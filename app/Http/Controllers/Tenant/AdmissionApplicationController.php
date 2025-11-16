@@ -185,7 +185,7 @@ class AdmissionApplicationController extends Controller
             ->with('grade:id,name,code')
             ->orderBy('academic_session_id')
             ->orderBy('grade_id')
-            ->get(['id', 'academic_session_id', 'grade_id', 'capacity']);
+            ->get(['id', 'academic_session_id', 'grade_id']);
 
         return response()->json([
             'sessions'        => $sessions,
