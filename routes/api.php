@@ -17,6 +17,7 @@ use App\Http\Controllers\Tenant\SessionSubjectController;
 use App\Http\Controllers\Tenant\FeeController;
 use App\Http\Controllers\Tenant\SessionFeeController;
 use App\Http\Controllers\Tenant\AdmissionApplicationController;
+use App\Http\Controllers\Tenant\AddressController;
 
 /*
 |--------------------------------------------------------------------------
@@ -121,6 +122,16 @@ Route::prefix('v1')
 
         Route::post('admission-applications', [AdmissionApplicationController::class, 'store'])
             ->name('admission-applications.store');
+
+        // Address endpoints – public (for dropdowns in forms)
+        Route::get('divisions', [AddressController::class, 'divisions'])
+            ->name('divisions.index');
+
+        Route::get('districts', [AddressController::class, 'districts'])
+            ->name('districts.index');
+
+        Route::get('areas', [AddressController::class, 'areas'])
+            ->name('areas.index');
 
         /* ------------------------------------------------
          | Authenticated (shared by all signed-in roles)

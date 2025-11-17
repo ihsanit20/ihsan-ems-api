@@ -87,4 +87,116 @@ class AdmissionApplication extends Model
     {
         return $this->belongsTo(Student::class, 'admitted_student_id');
     }
+
+    /* -------- Address Relationships -------- */
+
+    /**
+     * Get present address division
+     */
+    public function presentDivision()
+    {
+        $divisionId = $this->present_address['division_id'] ?? null;
+        return $divisionId ? Division::find($divisionId) : null;
+    }
+
+    /**
+     * Get present address district
+     */
+    public function presentDistrict()
+    {
+        $districtId = $this->present_address['district_id'] ?? null;
+        return $districtId ? District::find($districtId) : null;
+    }
+
+    /**
+     * Get present address area
+     */
+    public function presentArea()
+    {
+        $areaId = $this->present_address['area_id'] ?? null;
+        return $areaId ? Area::find($areaId) : null;
+    }
+
+    /**
+     * Get permanent address division
+     */
+    public function permanentDivision()
+    {
+        $divisionId = $this->permanent_address['division_id'] ?? null;
+        return $divisionId ? Division::find($divisionId) : null;
+    }
+
+    /**
+     * Get permanent address district
+     */
+    public function permanentDistrict()
+    {
+        $districtId = $this->permanent_address['district_id'] ?? null;
+        return $districtId ? District::find($districtId) : null;
+    }
+
+    /**
+     * Get permanent address area
+     */
+    public function permanentArea()
+    {
+        $areaId = $this->permanent_address['area_id'] ?? null;
+        return $areaId ? Area::find($areaId) : null;
+    }
+
+    /**
+     * Get formatted present address as string
+     */
+    public function getFormattedPresentAddressAttribute(): ?string
+    {
+        if (!$this->present_address) return null;
+
+        $parts = [];
+        
+        if ($village = $this->present_address['village_house_holding'] ?? null) {
+            $parts[] = $village;
+        }
+        
+        if ($area = $this->presentArea()) {
+            $parts[] = $area->name;
+        }
+        
+        if ($district = $this->presentDistrict()) {
+            $parts[] = $district->name;
+        }
+        
+        if ($division = $this->presentDivision()) {
+            $parts[] = $division->name;
+        }
+        
+        return implode(', ', $parts);
+    }
+
+    /**
+     * Get formatted permanent address as string
+     */
+    public function getFormattedPermanentAddressAttribute(): ?string
+    {
+        if (!$this->permanent_address) return null;
+
+        $parts = [];
+        
+        if ($village = $this->permanent_address['village_house_holding'] ?? null) {
+            $parts[] = $village;
+        }
+        
+        if ($area = $this->permanentArea()) {
+            $parts[] = $area->name;
+        }
+        
+        if ($district = $this->permanentDistrict()) {
+            $parts[] = $district->name;
+        }
+        
+        if ($division = $this->permanentDivision()) {
+            $parts[] = $division->name;
+        }
+        
+        return implode(', ', $parts);
+    }
 }

@@ -1,7 +1,8 @@
 <?php
 
-namespace App\Http\Controllers;
+namespace App\Http\Controllers\Tenant;
 
+use App\Http\Controllers\Controller;
 use App\Models\Tenant\Division;
 use App\Models\Tenant\District;
 use App\Models\Tenant\Area;

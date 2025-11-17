@@ -88,7 +88,17 @@ class AdmissionApplicationController extends Controller
             'guardian_relation'   => ['nullable', 'string', 'max:100'],
 
             'present_address'     => ['nullable', 'array'],
+            'present_address.division_id'  => ['nullable', 'integer', 'exists:tenant.divisions,id'],
+            'present_address.district_id'  => ['nullable', 'integer', 'exists:tenant.districts,id'],
+            'present_address.area_id'      => ['nullable', 'integer', 'exists:tenant.areas,id'],
+            'present_address.village_house_holding' => ['nullable', 'string', 'max:500'],
+
             'permanent_address'   => ['nullable', 'array'],
+            'permanent_address.division_id'  => ['nullable', 'integer', 'exists:tenant.divisions,id'],
+            'permanent_address.district_id'  => ['nullable', 'integer', 'exists:tenant.districts,id'],
+            'permanent_address.area_id'      => ['nullable', 'integer', 'exists:tenant.areas,id'],
+            'permanent_address.village_house_holding' => ['nullable', 'string', 'max:500'],
+
             'is_present_same_as_permanent' => ['nullable', 'boolean'],
 
             'previous_institution_name'    => ['nullable', 'string', 'max:255'],
@@ -234,7 +244,17 @@ class AdmissionApplicationController extends Controller
             'guardian_relation'   => ['sometimes', 'nullable', 'string', 'max:100'],
 
             'present_address'     => ['sometimes', 'nullable', 'array'],
+            'present_address.division_id'  => ['sometimes', 'nullable', 'integer', 'exists:tenant.divisions,id'],
+            'present_address.district_id'  => ['sometimes', 'nullable', 'integer', 'exists:tenant.districts,id'],
+            'present_address.area_id'      => ['sometimes', 'nullable', 'integer', 'exists:tenant.areas,id'],
+            'present_address.village_house_holding' => ['sometimes', 'nullable', 'string', 'max:500'],
+
             'permanent_address'   => ['sometimes', 'nullable', 'array'],
+            'permanent_address.division_id'  => ['sometimes', 'nullable', 'integer', 'exists:tenant.divisions,id'],
+            'permanent_address.district_id'  => ['sometimes', 'nullable', 'integer', 'exists:tenant.districts,id'],
+            'permanent_address.area_id'      => ['sometimes', 'nullable', 'integer', 'exists:tenant.areas,id'],
+            'permanent_address.village_house_holding' => ['sometimes', 'nullable', 'string', 'max:500'],
+
             'is_present_same_as_permanent' => ['sometimes', 'boolean'],
 
             'previous_institution_name'    => ['sometimes', 'nullable', 'string', 'max:255'],
