@@ -230,6 +230,55 @@ function onUploaded(payload: any) {
     router.reload({ only: ['tenants'] });
 }
 
+// ---------- Seeder modal state ----------
+const seederOpen = ref(false);
+const seederTenant = ref<TenantRow | null>(null);
+const availableSeeders = ref<Array<{ name: string; class: string }>>([]);
+const selectedSeeder = ref<string>('');
+
+async function openSeeder(t: TenantRow) {
+    seederTenant.value = t;
+    // Fetch available seeders
+    try {
+        const data = await jsonGet('/admin/tenants/seeders/available');
+        availableSeeders.value = data.seeders || [];
+        if (availableSeeders.value.length > 0) {
+            selectedSeeder.value = availableSeeders.value[0].class;
+        }
+        seederOpen.value = true;
+    } catch (e: any) {
+        alert('Failed to load seeders: ' + e.message);
+    }
+}
+function closeSeeder() {
+    seederOpen.value = false;
+    seederTenant.value = null;
+    selectedSeeder.value = '';
+}
+async function runSeeder() {
+    if (!seederTenant.value || !selectedSeeder.value) return;
+    if (
+        !ask(
+            `Run seeder "${selectedSeeder.value}" for "${seederTenant.value.name}"?`,
+        )
+    )
+        return;
+
+    try {
+        const data = await jsonPost(
+            `/admin/tenants/${seederTenant.value.id}/seed`,
+            {
+                seeder: selectedSeeder.value,
+            },
+        );
+        showResult(`Seeder — ${seederTenant.value.name}`, data);
+        router.reload({ only: ['tenants'] });
+        closeSeeder();
+    } catch (e: any) {
+        alert(e.message);
+    }
+}
+
 // ---------- More menu logic ----------
 function openMore(t: TenantRow, el: HTMLElement) {
     const r = el.getBoundingClientRect();
@@ -269,6 +318,7 @@ function onKey(e: KeyboardEvent) {
     if (e.key === 'Escape') {
         if (modalOpen.value) closeModal();
         if (uploadOpen.value) uploadOpen.value = false;
+        if (seederOpen.value) closeSeeder();
         if (resultOpen.value) closeResult();
         if (moreOpen.value) closeMore();
     }
@@ -630,6 +680,85 @@ onBeforeUnmount(() => {
                 @uploaded="onUploaded"
             />
 
+            <!-- Seeder Selection Modal -->
+            <div
+                v-if="seederOpen"
+                class="fixed inset-0 z-50"
+                aria-modal="true"
+                role="dialog"
+            >
+                <div
+                    class="absolute inset-0 bg-black/40 backdrop-blur-[1px]"
+                    @click="closeSeeder"
+                ></div>
+                <div
+                    class="absolute inset-0 flex items-center justify-center p-4"
+                >
+                    <div
+                        class="w-full max-w-md rounded-xl border border-sidebar-border/70 bg-white shadow-xl dark:border-sidebar-border dark:bg-sidebar"
+                    >
+                        <div
+                            class="flex items-center justify-between border-b p-4 dark:border-neutral-800"
+                        >
+                            <h3 class="text-lg font-semibold">
+                                Run Seeder — {{ seederTenant?.name }}
+                            </h3>
+                            <button
+                                class="rounded px-2 py-1 hover:bg-black/5 dark:hover:bg-white/10"
+                                @click="closeSeeder"
+                            >
+                                ✕
+                            </button>
+                        </div>
+
+                        <div class="p-4">
+                            <label class="mb-2 block text-sm font-medium">
+                                Select Seeder:
+                            </label>
+                            <select
+                                v-model="selectedSeeder"
+                                class="w-full rounded border p-2 dark:bg-transparent"
+                            >
+                                <option
+                                    v-for="seeder in availableSeeders"
+                                    :key="seeder.class"
+                                    :value="seeder.class"
+                                >
+                                    {{ seeder.name }}
+                                </option>
+                            </select>
+
+                            <p
+                                v-if="availableSeeders.length === 0"
+                                class="mt-2 text-sm text-neutral-500"
+                            >
+                                No seeders found in database/seeders/tenant/
+                            </p>
+                        </div>
+
+                        <div
+                            class="flex items-center justify-end gap-2 border-t p-4 dark:border-neutral-800"
+                        >
+                            <button
+                                type="button"
+                                @click="closeSeeder"
+                                class="rounded border px-4 py-2"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                type="button"
+                                @click="runSeeder"
+                                class="rounded bg-black px-4 py-2 text-white disabled:opacity-60 dark:bg-white dark:text-black"
+                                :disabled="!selectedSeeder"
+                            >
+                                Run Seeder
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
             <!-- More menu -->
             <Teleport to="body">
                 <div
@@ -657,6 +786,13 @@ onBeforeUnmount(() => {
                         title="Create DB if missing and run migrations"
                     >
                         <Server class="h-4 w-4" /> Provision
+                    </button>
+                    <button
+                        @click="doAndClose(openSeeder)"
+                        class="flex w-full items-center gap-2 rounded px-2 py-1.5 text-left hover:bg-black/5 dark:hover:bg-white/10"
+                        title="Run tenant seeders"
+                    >
+                        <Database class="h-4 w-4" /> Run Seeders
                     </button>
                     <hr
                         class="my-1 border-neutral-200 dark:border-neutral-700"

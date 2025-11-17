@@ -201,6 +201,109 @@ class TenantController extends Controller
         return back()->with('success', 'Tenant migrations ran (' . count($ran) . ')');
     }
 
+    /**
+     * Run any tenant seeder
+     */
+    public function seed(Request $request, Tenant $tenant, TenantManager $tm)
+    {
+        $request->validate([
+            'seeder' => 'required|string',
+        ]);
+
+        $seederClass = $request->input('seeder');
+
+        // Security: ensure it's a valid tenant seeder class
+        if (!str_starts_with($seederClass, 'Database\\Seeders\\Tenant\\')) {
+            return response()->json(['ok' => false, 'error' => 'Invalid seeder class'], 400);
+        }
+
+        $tm->setTenant($tenant);
+
+        // Get all tables BEFORE
+        $tablesBefore = $this->listTables('tenant');
+        $beforeCounts = [];
+        foreach ($tablesBefore as $table) {
+            try {
+                $beforeCounts[$table] = DB::connection('tenant')->table($table)->count();
+            } catch (\Throwable $e) {
+                // skip
+            }
+        }
+
+        // Run seeder
+        try {
+            Artisan::call('db:seed', [
+                '--class' => $seederClass,
+                '--force' => true,
+            ]);
+        } catch (\Throwable $e) {
+            $payload = [
+                'ok' => false,
+                'error' => $e->getMessage(),
+                'output' => Artisan::output()
+            ];
+
+            if ($request->expectsJson() || $request->wantsJson()) {
+                return response()->json($payload, 500);
+            }
+            return back()->with('error', 'Seeding failed: ' . $e->getMessage());
+        }
+
+        // Get all tables AFTER
+        $tablesAfter = $this->listTables('tenant');
+        $afterCounts = [];
+        $inserted = [];
+        foreach ($tablesAfter as $table) {
+            try {
+                $afterCounts[$table] = DB::connection('tenant')->table($table)->count();
+                $diff = $afterCounts[$table] - ($beforeCounts[$table] ?? 0);
+                if ($diff > 0) {
+                    $inserted[$table] = $diff;
+                }
+            } catch (\Throwable $e) {
+                // skip
+            }
+        }
+
+        $totalInserted = array_sum($inserted);
+
+        $payload = [
+            'ok' => true,
+            'seeder' => $seederClass,
+            'inserted' => $inserted,
+            'total_inserted' => $totalInserted,
+            'output' => Artisan::output()
+        ];
+
+        if ($request->expectsJson() || $request->wantsJson()) {
+            return response()->json($payload);
+        }
+
+        return back()->with('success', "Seeder ran successfully! Inserted {$totalInserted} records.");
+    }
+
+    /**
+     * List available tenant seeders
+     */
+    public function availableSeeders()
+    {
+        $path = database_path('seeders/tenant');
+        $seeders = [];
+
+        if (is_dir($path)) {
+            $files = glob($path . '/*.php');
+            foreach ($files as $file) {
+                $basename = basename($file, '.php');
+                $seeders[] = [
+                    'name' => $basename,
+                    'class' => "Database\\Seeders\\Tenant\\{$basename}",
+                ];
+            }
+        }
+
+        return response()->json(['ok' => true, 'seeders' => $seeders]);
+    }
+
     public function provision(Request $request, Tenant $tenant, TenantManager $tm)
     {
         // (optional) create DB if not exists (central connection)

@@ -24,6 +24,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
         // actions
         Route::post('/{tenant}/migrate', [TenantController::class, 'migrate'])->name('migrate');
+        Route::post('/{tenant}/seed', [TenantController::class, 'seed'])->name('seed');
+        Route::get('/seeders/available', [TenantController::class, 'availableSeeders'])->name('seeders.available');
         Route::post('/{tenant}/provision', [TenantController::class, 'provision'])->name('provision');
         Route::get('/{tenant}/status', [TenantController::class, 'status'])->name('status');
 
