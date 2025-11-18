@@ -17,6 +17,7 @@ use App\Http\Controllers\Tenant\SessionSubjectController;
 use App\Http\Controllers\Tenant\FeeController;
 use App\Http\Controllers\Tenant\SessionFeeController;
 use App\Http\Controllers\Tenant\AdmissionApplicationController;
+use App\Http\Controllers\Tenant\StudentController;
 use App\Http\Controllers\Tenant\AddressController;
 
 /*
@@ -306,6 +307,57 @@ Route::prefix('v1')
             Route::post('admission-applications/{id}/admit', [AdmissionApplicationController::class, 'admit'])
                 ->whereNumber('id')
                 ->name('admission-applications.admit');
+
+            // Student Management (Admin+)
+            Route::get('students', [StudentController::class, 'index'])
+                ->name('students.index');
+
+            Route::get('students/stats', [StudentController::class, 'stats'])
+                ->name('students.stats');
+
+            Route::get('students/export', [StudentController::class, 'export'])
+                ->name('students.export');
+
+            Route::post('students', [StudentController::class, 'store'])
+                ->name('students.store');
+
+            Route::get('students/{student}', [StudentController::class, 'show'])
+                ->whereNumber('student')
+                ->name('students.show');
+
+            Route::match(['put', 'patch'], 'students/{student}', [StudentController::class, 'update'])
+                ->whereNumber('student')
+                ->name('students.update');
+
+            Route::delete('students/{student}', [StudentController::class, 'destroy'])
+                ->whereNumber('student')
+                ->name('students.destroy');
+
+            Route::get('students/{student}/enrollments', [StudentController::class, 'enrollments'])
+                ->whereNumber('student')
+                ->name('students.enrollments');
+
+            Route::post('students/{student}/create-account', [StudentController::class, 'createUserAccount'])
+                ->whereNumber('student')
+                ->name('students.create-account');
+
+            Route::post('students/{student}/upload-photo', [StudentController::class, 'uploadPhoto'])
+                ->whereNumber('student')
+                ->name('students.upload-photo');
+
+            Route::post('students/{student}/transfer', [StudentController::class, 'transfer'])
+                ->whereNumber('student')
+                ->name('students.transfer');
+
+            Route::post('students/{student}/issue-tc', [StudentController::class, 'issueTC'])
+                ->whereNumber('student')
+                ->name('students.issue-tc');
+
+            Route::post('students/bulk-status', [StudentController::class, 'bulkUpdateStatus'])
+                ->name('students.bulk-status');
+
+            Route::post('students/bulk-promote', [StudentController::class, 'bulkPromote'])
+                ->name('students.bulk-promote');
         });
 
         /* ------------------------------------------------
