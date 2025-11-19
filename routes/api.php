@@ -19,6 +19,9 @@ use App\Http\Controllers\Tenant\SessionFeeController;
 use App\Http\Controllers\Tenant\AdmissionApplicationController;
 use App\Http\Controllers\Tenant\StudentController;
 use App\Http\Controllers\Tenant\AddressController;
+use App\Http\Controllers\Tenant\StudentFeeController;
+use App\Http\Controllers\Tenant\FeeInvoiceController;
+use App\Http\Controllers\Tenant\PaymentController;
 
 /*
 |--------------------------------------------------------------------------
@@ -380,6 +383,81 @@ Route::prefix('v1')
             Route::get('invoices', fn() => response()->json(['invoices' => []]))->name('finance.invoices.index');
             Route::post('invoices', fn() => response()->json(['created' => true]))->name('finance.invoices.store');
             Route::post('reconcile', fn() => response()->json(['ok' => true]))->name('finance.reconcile');
+
+            // Student Fees
+            Route::get('student-fees', [StudentFeeController::class, 'index'])
+                ->name('student-fees.index');
+
+            Route::get('student-fees/{studentFee}', [StudentFeeController::class, 'show'])
+                ->whereNumber('studentFee')
+                ->name('student-fees.show');
+
+            Route::post('student-fees', [StudentFeeController::class, 'store'])
+                ->name('student-fees.store');
+
+            Route::match(['put', 'patch'], 'student-fees/{studentFee}', [StudentFeeController::class, 'update'])
+                ->whereNumber('studentFee')
+                ->name('student-fees.update');
+
+            Route::delete('student-fees/{studentFee}', [StudentFeeController::class, 'destroy'])
+                ->whereNumber('studentFee')
+                ->name('student-fees.destroy');
+
+            Route::post('student-fees/bulk-assign', [StudentFeeController::class, 'bulkAssign'])
+                ->name('student-fees.bulk-assign');
+
+            Route::post('student-fees/bulk-update', [StudentFeeController::class, 'bulkUpdate'])
+                ->name('student-fees.bulk-update');
+
+            // Fee Invoices
+            Route::get('fee-invoices', [FeeInvoiceController::class, 'index'])
+                ->name('fee-invoices.index');
+
+            Route::get('fee-invoices/{feeInvoice}', [FeeInvoiceController::class, 'show'])
+                ->whereNumber('feeInvoice')
+                ->name('fee-invoices.show');
+
+            Route::post('fee-invoices', [FeeInvoiceController::class, 'store'])
+                ->name('fee-invoices.store');
+
+            Route::match(['put', 'patch'], 'fee-invoices/{feeInvoice}', [FeeInvoiceController::class, 'update'])
+                ->whereNumber('feeInvoice')
+                ->name('fee-invoices.update');
+
+            Route::delete('fee-invoices/{feeInvoice}', [FeeInvoiceController::class, 'destroy'])
+                ->whereNumber('feeInvoice')
+                ->name('fee-invoices.destroy');
+
+            Route::get('students/{studentId}/invoices', [FeeInvoiceController::class, 'studentInvoices'])
+                ->whereNumber('studentId')
+                ->name('students.invoices');
+
+            // Payments
+            Route::get('payments', [PaymentController::class, 'index'])
+                ->name('payments.index');
+
+            Route::get('payments/{payment}', [PaymentController::class, 'show'])
+                ->whereNumber('payment')
+                ->name('payments.show');
+
+            Route::post('payments', [PaymentController::class, 'store'])
+                ->name('payments.store');
+
+            Route::match(['put', 'patch'], 'payments/{payment}', [PaymentController::class, 'update'])
+                ->whereNumber('payment')
+                ->name('payments.update');
+
+            Route::delete('payments/{payment}', [PaymentController::class, 'destroy'])
+                ->whereNumber('payment')
+                ->name('payments.destroy');
+
+            Route::get('students/{studentId}/payments', [PaymentController::class, 'studentPayments'])
+                ->whereNumber('studentId')
+                ->name('students.payments');
+
+            Route::get('invoices/{invoiceId}/payments', [PaymentController::class, 'invoicePayments'])
+                ->whereNumber('invoiceId')
+                ->name('invoices.payments');
         });
 
         /* ------------------------------------------------
