@@ -40,6 +40,12 @@ class StudentEnrollment extends Model
         return $this->belongsTo(AcademicSession::class, 'academic_session_id');
     }
 
+    // Alias for academic session (more explicit naming)
+    public function academicSession(): BelongsTo
+    {
+        return $this->belongsTo(AcademicSession::class, 'academic_session_id');
+    }
+
     public function sessionGrade(): BelongsTo
     {
         return $this->belongsTo(SessionGrade::class, 'session_grade_id');
