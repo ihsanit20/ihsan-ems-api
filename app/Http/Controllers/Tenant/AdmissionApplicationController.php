@@ -366,6 +366,17 @@ class AdmissionApplicationController extends Controller
         $admissionDate = $data['admission_date'] ?? now()->toDateString();
 
         $result = DB::connection('tenant')->transaction(function () use ($application, $data, $admissionDate) {
+            // Auto-assign roll number if not provided and section exists
+            $rollNo = $data['roll_no'] ?? null;
+
+            if (!$rollNo && isset($data['section_id'])) {
+                // Get the next roll number for this session + section
+                $maxRoll = StudentEnrollment::where('academic_session_id', $application->academic_session_id)
+                    ->where('section_id', $data['section_id'])
+                    ->max(DB::raw('CAST(roll_no AS UNSIGNED)'));
+
+                $rollNo = (string) (($maxRoll ?? 0) + 1);
+            }
             // 1) Student resolve/create
             if ($application->existing_student_id) {
                 $student = Student::findOrFail($application->existing_student_id);
@@ -410,7 +421,7 @@ class AdmissionApplicationController extends Controller
                 'academic_session_id' => $application->academic_session_id,
                 'session_grade_id'    => $application->session_grade_id,
                 'section_id'          => $data['section_id'] ?? null,
-                'roll_no'             => $data['roll_no'] ?? null,
+                'roll_no'             => $rollNo,
 
                 'admission_type'      => $application->application_type === 're_admission'
                     ? 're_admission'
@@ -492,7 +503,29 @@ class AdmissionApplicationController extends Controller
 
     protected function generateStudentCode(): string
     {
-        // সিম্পল ইউনিক কোড, চাইলে আরও কাস্টম করতে পারো
-        return 'STU-' . strtoupper(Str::random(8));
+        // সহজ মনে রাখার মত স্থায়ী নম্বর: শেষ 2 ডিজিট বছর + ক্রমিক সংখ্যা
+        // উদাহরণ: 250001, 250002, 250003... (6 ডিজিট)
+
+        $year = now()->format('y'); // শেষ 2 ডিজিট বছর: 25, 26...
+
+        // এই বছরের সর্বশেষ student code খুঁজে বের করা
+        $lastStudent = Student::where('student_code', 'like', $year . '%')
+            ->orderBy('student_code', 'desc')
+            ->first();
+
+        if ($lastStudent) {
+            // বিদ্যমান code থেকে sequence বের করা
+            $lastCode = $lastStudent->student_code;
+            $lastSeq = (int) substr($lastCode, strlen($year));
+            $nextSeq = $lastSeq + 1;
+        } else {
+            // এই বছরের প্রথম student
+            $nextSeq = 1;
+        }
+
+        // 4 ডিজিটের sequence (0001, 0002, ...)
+        $seq = str_pad((string) $nextSeq, 4, '0', STR_PAD_LEFT);
+
+        return $year . $seq; // 250001, 250002...
     }
 }
