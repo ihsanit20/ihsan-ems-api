@@ -15,7 +15,7 @@ class StudentFee extends Model
     protected $fillable = [
         'student_id',
         'academic_session_id',
-        'fee_id',
+        'session_fee_id',
         'amount',
         'discount_type',
         'discount_value',
@@ -31,8 +31,8 @@ class StudentFee extends Model
         return $this->belongsTo(AcademicSession::class, 'academic_session_id');
     }
 
-    public function fee(): BelongsTo
+    public function sessionFee(): BelongsTo
     {
-        return $this->belongsTo(Fee::class, 'fee_id');
+        return $this->belongsTo(SessionFee::class, 'session_fee_id');
     }
 }

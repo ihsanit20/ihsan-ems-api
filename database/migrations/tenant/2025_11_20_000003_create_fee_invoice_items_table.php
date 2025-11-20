@@ -14,7 +14,7 @@ return new class extends Migration
         Schema::create('fee_invoice_items', function (Blueprint $table) {
             $table->id();
             $table->foreignId('fee_invoice_id')->constrained('fee_invoices')->cascadeOnDelete();
-            $table->foreignId('fee_id')->constrained('fees');
+            $table->foreignId('session_fee_id')->constrained('session_fees');
             $table->string('description')->nullable();
             $table->decimal('amount', 10, 2);
             $table->decimal('discount_amount', 10, 2)->default(0);

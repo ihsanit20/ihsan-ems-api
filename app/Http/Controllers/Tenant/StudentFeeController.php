@@ -10,7 +10,7 @@ class StudentFeeController extends Controller
 {
     public function index(Request $request)
     {
-        $query = StudentFee::with(['student', 'fee', 'academicSession']);
+        $query = StudentFee::with(['student', 'sessionFee.fee', 'sessionFee.grade', 'academicSession']);
 
         if ($request->has('student_id')) {
             $query->where('student_id', $request->student_id);
@@ -20,8 +20,8 @@ class StudentFeeController extends Controller
             $query->where('academic_session_id', $request->academic_session_id);
         }
 
-        if ($request->has('fee_id')) {
-            $query->where('fee_id', $request->fee_id);
+        if ($request->has('session_fee_id')) {
+            $query->where('session_fee_id', $request->session_fee_id);
         }
 
         $studentFees = $query->paginate($request->get('per_page', 15));
@@ -31,7 +31,7 @@ class StudentFeeController extends Controller
 
     public function show(StudentFee $studentFee)
     {
-        $studentFee->load(['student', 'fee', 'academicSession']);
+        $studentFee->load(['student', 'sessionFee.fee', 'sessionFee.grade', 'academicSession']);
         return response()->json($studentFee);
     }
 
@@ -40,13 +40,13 @@ class StudentFeeController extends Controller
         $validated = $request->validate([
             'student_id' => 'required|exists:students,id',
             'academic_session_id' => 'required|exists:academic_sessions,id',
-            'fee_id' => 'required_without:items|exists:fees,id',
-            'amount' => 'required_without:items|numeric|min:0',
+            'session_fee_id' => 'required_without:items|exists:session_fees,id',
+            'amount' => 'nullable|numeric|min:0',
             'discount_type' => 'nullable|in:flat,percent',
             'discount_value' => 'nullable|numeric|min:0',
             'items' => 'array',
-            'items.*.fee_id' => 'required|exists:fees,id',
-            'items.*.amount' => 'required|numeric|min:0',
+            'items.*.session_fee_id' => 'required|exists:session_fees,id',
+            'items.*.amount' => 'nullable|numeric|min:0',
             'items.*.discount_type' => 'nullable|in:flat,percent',
             'items.*.discount_value' => 'nullable|numeric|min:0',
         ]);
@@ -56,22 +56,24 @@ class StudentFeeController extends Controller
         if ($request->has('items')) {
             // Multiple items format
             foreach ($validated['items'] as $item) {
+                $sessionFee = \App\Models\Tenant\SessionFee::findOrFail($item['session_fee_id']);
                 $created[] = StudentFee::create([
                     'student_id' => $validated['student_id'],
                     'academic_session_id' => $validated['academic_session_id'],
-                    'fee_id' => $item['fee_id'],
-                    'amount' => $item['amount'],
+                    'session_fee_id' => $item['session_fee_id'],
+                    'amount' => $item['amount'] ?? $sessionFee->amount,
                     'discount_type' => $item['discount_type'] ?? null,
                     'discount_value' => $item['discount_value'] ?? null,
                 ]);
             }
         } else {
             // Single item format
+            $sessionFee = \App\Models\Tenant\SessionFee::findOrFail($validated['session_fee_id']);
             $created[] = StudentFee::create([
                 'student_id' => $validated['student_id'],
                 'academic_session_id' => $validated['academic_session_id'],
-                'fee_id' => $validated['fee_id'],
-                'amount' => $validated['amount'],
+                'session_fee_id' => $validated['session_fee_id'],
+                'amount' => $validated['amount'] ?? $sessionFee->amount,
                 'discount_type' => $validated['discount_type'] ?? null,
                 'discount_value' => $validated['discount_value'] ?? null,
             ]);
@@ -114,9 +116,9 @@ class StudentFeeController extends Controller
             'academic_session_id' => 'required|exists:academic_sessions,id',
             'student_ids' => 'required|array',
             'student_ids.*' => 'exists:students,id',
-            'fee_ids' => 'required|array',
-            'fee_ids.*' => 'exists:fees,id',
-            'amount' => 'required|numeric|min:0',
+            'session_fee_ids' => 'required|array',
+            'session_fee_ids.*' => 'exists:session_fees,id',
+            'amount' => 'nullable|numeric|min:0',
             'discount_type' => 'nullable|in:flat,percent',
             'discount_value' => 'nullable|numeric|min:0',
         ]);
@@ -125,15 +127,17 @@ class StudentFeeController extends Controller
         $existing = 0;
 
         foreach ($validated['student_ids'] as $studentId) {
-            foreach ($validated['fee_ids'] as $feeId) {
+            foreach ($validated['session_fee_ids'] as $sessionFeeId) {
+                $sessionFee = \App\Models\Tenant\SessionFee::findOrFail($sessionFeeId);
+
                 $studentFee = StudentFee::firstOrCreate(
                     [
                         'student_id' => $studentId,
                         'academic_session_id' => $validated['academic_session_id'],
-                        'fee_id' => $feeId,
+                        'session_fee_id' => $sessionFeeId,
                     ],
                     [
-                        'amount' => $validated['amount'],
+                        'amount' => $validated['amount'] ?? $sessionFee->amount,
                         'discount_type' => $validated['discount_type'] ?? null,
                         'discount_value' => $validated['discount_value'] ?? null,
                     ]

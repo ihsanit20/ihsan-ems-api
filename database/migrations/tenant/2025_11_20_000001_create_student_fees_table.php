@@ -15,7 +15,7 @@ return new class extends Migration
             $table->id();
             $table->foreignId('student_id')->constrained('students');
             $table->foreignId('academic_session_id')->constrained('academic_sessions');
-            $table->foreignId('fee_id')->constrained('fees');
+            $table->foreignId('session_fee_id')->constrained('session_fees');
             $table->decimal('amount', 10, 2);
             $table->enum('discount_type', ['flat', 'percent'])->nullable();
             $table->decimal('discount_value', 10, 2)->nullable();

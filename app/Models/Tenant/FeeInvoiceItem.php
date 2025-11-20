@@ -14,7 +14,7 @@ class FeeInvoiceItem extends Model
 
     protected $fillable = [
         'fee_invoice_id',
-        'fee_id',
+        'session_fee_id',
         'description',
         'amount',
         'discount_amount',
@@ -26,8 +26,8 @@ class FeeInvoiceItem extends Model
         return $this->belongsTo(FeeInvoice::class, 'fee_invoice_id');
     }
 
-    public function fee(): BelongsTo
+    public function sessionFee(): BelongsTo
     {
-        return $this->belongsTo(Fee::class, 'fee_id');
+        return $this->belongsTo(SessionFee::class, 'session_fee_id');
     }
 }
