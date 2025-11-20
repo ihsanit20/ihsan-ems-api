@@ -27,7 +27,7 @@ return new class extends Migration {
 
             $table->unique(['session_id', 'subject_id']);
 
-            $table->index(['session_id', 'order_index']);
+            $table->index(['session_id', 'sort_order']);
         });
     }
 
