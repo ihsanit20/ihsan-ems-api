@@ -63,4 +63,39 @@ class Student extends Model
     {
         return $this->hasMany(StudentEnrollment::class, 'student_id');
     }
+
+    /* -------- Helper Methods -------- */
+
+    /**
+     * Get the latest/current enrollment for the student.
+     * Useful for fee assignment and academic session information.
+     *
+     * @return StudentEnrollment|null
+     */
+    public function getLatestEnrollment(): ?StudentEnrollment
+    {
+        return $this->enrollments()
+            ->orderByDesc('academic_session_id')
+            ->orderByDesc('id')
+            ->first();
+    }
+
+    /**
+     * Get latest enrollment with all relationships loaded.
+     * This is what the API endpoint returns.
+     *
+     * @return StudentEnrollment|null
+     */
+    public function getLatestEnrollmentWithDetails(): ?StudentEnrollment
+    {
+        return $this->enrollments()
+            ->with([
+                'academicSession',
+                'sessionGrade.grade.level',
+                'section',
+            ])
+            ->orderByDesc('academic_session_id')
+            ->orderByDesc('id')
+            ->first();
+    }
 }

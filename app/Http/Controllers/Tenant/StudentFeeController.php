@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Tenant;
 
 use App\Http\Controllers\Controller;
 use App\Models\Tenant\StudentFee;
+use App\Models\Tenant\Student;
 use Illuminate\Http\Request;
 
 class StudentFeeController extends Controller
@@ -37,19 +38,55 @@ class StudentFeeController extends Controller
 
     public function store(Request $request)
     {
-        $validated = $request->validate([
-            'student_id' => 'required|exists:students,id',
-            'academic_session_id' => 'required|exists:academic_sessions,id',
-            'session_fee_id' => 'required_without:items|exists:session_fees,id',
-            'amount' => 'nullable|numeric|min:0',
-            'discount_type' => 'nullable|in:flat,percent',
-            'discount_value' => 'nullable|numeric|min:0',
-            'items' => 'array',
-            'items.*.session_fee_id' => 'required|exists:session_fees,id',
-            'items.*.amount' => 'nullable|numeric|min:0',
-            'items.*.discount_type' => 'nullable|in:flat,percent',
-            'items.*.discount_value' => 'nullable|numeric|min:0',
-        ]);
+        // Support both 'with_latest_enrollment' and 'auto_session' parameters
+        $useLatestEnrollment = $request->boolean('with_latest_enrollment', false) || $request->boolean('auto_session', false);
+
+        if ($useLatestEnrollment) {
+            // If auto_session is enabled, academic_session_id is optional
+            $validated = $request->validate([
+                'student_id' => 'required|exists:students,id',
+                'academic_session_id' => 'nullable|exists:academic_sessions,id',
+                'session_fee_id' => 'required_without:items|exists:session_fees,id',
+                'amount' => 'nullable|numeric|min:0',
+                'discount_type' => 'nullable|in:flat,percent',
+                'discount_value' => 'nullable|numeric|min:0',
+                'items' => 'array',
+                'items.*.session_fee_id' => 'required|exists:session_fees,id',
+                'items.*.amount' => 'nullable|numeric|min:0',
+                'items.*.discount_type' => 'nullable|in:flat,percent',
+                'items.*.discount_value' => 'nullable|numeric|min:0',
+            ]);
+
+            // Get student's latest enrollment if not provided
+            if (!$validated['academic_session_id']) {
+                $student = Student::findOrFail($validated['student_id']);
+                $enrollment = $student->getLatestEnrollment();
+
+                if (!$enrollment) {
+                    return response()->json([
+                        'message' => 'Student has no enrollment. Please provide academic_session_id explicitly.',
+                        'data' => null
+                    ], 422);
+                }
+
+                $validated['academic_session_id'] = $enrollment->academic_session_id;
+            }
+        } else {
+            // Original validation - academic_session_id is required
+            $validated = $request->validate([
+                'student_id' => 'required|exists:students,id',
+                'academic_session_id' => 'required|exists:academic_sessions,id',
+                'session_fee_id' => 'required_without:items|exists:session_fees,id',
+                'amount' => 'nullable|numeric|min:0',
+                'discount_type' => 'nullable|in:flat,percent',
+                'discount_value' => 'nullable|numeric|min:0',
+                'items' => 'array',
+                'items.*.session_fee_id' => 'required|exists:session_fees,id',
+                'items.*.amount' => 'nullable|numeric|min:0',
+                'items.*.discount_type' => 'nullable|in:flat,percent',
+                'items.*.discount_value' => 'nullable|numeric|min:0',
+            ]);
+        }
 
         $created = [];
 

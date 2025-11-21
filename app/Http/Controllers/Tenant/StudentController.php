@@ -27,6 +27,7 @@ class StudentController extends Controller
      * - session_grade_id (filter by enrollment)
      * - section_id (filter by enrollment)
      * - per_page (default: 25)
+     * - with_latest_enrollment (boolean, default: false - include latest enrollment with related data)
      * - with (eager load: user, enrollments, enrollments.academicSession, enrollments.sessionGrade, enrollments.section)
      */
     public function index(Request $request)
@@ -43,6 +44,16 @@ class StudentController extends Controller
 
         if ($with) {
             $query->with($with);
+        }
+
+        // Optionally include latest enrollment with related data
+        if ($request->boolean('with_latest_enrollment', false)) {
+            $query->with(['enrollments' => function ($q) {
+                $q->orderByDesc('academic_session_id')
+                    ->orderByDesc('id')
+                    ->limit(1)
+                    ->with(['academicSession', 'sessionGrade.grade.level', 'section']);
+            }]);
         }
 
         // Search
@@ -108,12 +119,16 @@ class StudentController extends Controller
      * Show single student with full details.
      *
      * GET /api/v1/students/{student}
+     * Query params:
+     * - with_enrollments (boolean, default: true - include all enrollments)
+     * - with_latest_enrollment (boolean, default: true - include latest enrollment with full details)
      */
     public function show(Student $student, Request $request)
     {
         // Load relationships if requested
         $with = ['user'];
 
+        // Include all enrollments if requested (default: true)
         if ($request->boolean('with_enrollments', true)) {
             $with[] = 'enrollments.academicSession';
             $with[] = 'enrollments.sessionGrade.grade.level';
@@ -121,6 +136,11 @@ class StudentController extends Controller
         }
 
         $student->loadMissing($with);
+
+        // Add latest enrollment data separately if requested (default: true)
+        if ($request->boolean('with_latest_enrollment', true)) {
+            $student->latest_enrollment = $student->getLatestEnrollmentWithDetails();
+        }
 
         return response()->json($student);
     }
