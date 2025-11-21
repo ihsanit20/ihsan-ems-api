@@ -428,6 +428,10 @@ Route::prefix('v1')
                 ->whereNumber('feeInvoice')
                 ->name('fee-invoices.destroy');
 
+            Route::get('fee-invoices/{feeInvoice}/payments', [PaymentController::class, 'invoicePayments'])
+                ->whereNumber('feeInvoice')
+                ->name('fee-invoices.payments');
+
             Route::get('students/{studentId}/invoices', [FeeInvoiceController::class, 'studentInvoices'])
                 ->whereNumber('studentId')
                 ->name('students.invoices');
@@ -455,8 +459,8 @@ Route::prefix('v1')
                 ->whereNumber('studentId')
                 ->name('students.payments');
 
-            Route::get('invoices/{invoiceId}/payments', [PaymentController::class, 'invoicePayments'])
-                ->whereNumber('invoiceId')
+            Route::get('invoices/{feeInvoice}/payments', [PaymentController::class, 'invoicePayments'])
+                ->whereNumber('feeInvoice')
                 ->name('invoices.payments');
         });
 

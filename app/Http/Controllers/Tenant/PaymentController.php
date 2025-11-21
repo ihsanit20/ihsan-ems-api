@@ -141,14 +141,12 @@ class PaymentController extends Controller
         return response()->json($payments);
     }
 
-    public function invoicePayments(int $invoiceId)
+    public function invoicePayments(FeeInvoice $feeInvoice)
     {
-        $payments = Payment::where('fee_invoice_id', $invoiceId)
-            ->with('student')
-            ->orderBy('payment_date', 'desc')
+        return $feeInvoice->payments()
+            ->with(['student', 'feeInvoice'])
+            ->orderByDesc('payment_date')
             ->get();
-
-        return response()->json($payments);
     }
 
     /**
