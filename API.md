@@ -268,7 +268,7 @@ Content-Type: application/json
   "due_date": "2024-01-31",
   "items": [
     {
-      "session_fee_id": 1,
+      "student_fee_id": 1,
       "amount": 5000,
       "discount_amount": 500
     }

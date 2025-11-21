@@ -226,12 +226,7 @@ class StudentFeeController extends Controller
 
     public function dueFees(Request $request, int $studentId)
     {
-        /**
-         * ✅ We want DUE fees from student_fees table.
-         * Exclude only those student_fees that are already invoiced.
-         */
-
-        // 1) already invoiced student_fee_ids for this student (optionally scoped by session)
+        // 1) এই ছাত্রের যে student_fee গুলো already invoice হয়েছে সেগুলোর id নাও
         $invoicedStudentFeeIds = FeeInvoiceItem::whereHas('feeInvoice', function ($q) use ($studentId, $request) {
             $q->where('student_id', $studentId);
 
@@ -244,20 +239,20 @@ class StudentFeeController extends Controller
             ->unique()
             ->values();
 
-        // 2) now pull due StudentFee rows
+        // 2) এখন student_fees থেকেই due fees আনো
         $dueFees = StudentFee::with(['sessionFee.fee', 'sessionFee.grade', 'academicSession'])
             ->where('student_id', $studentId)
             ->when($request->filled('academic_session_id'), function ($q) use ($request) {
                 $q->where('academic_session_id', $request->input('academic_session_id'));
             })
-            // optional grade filter (your frontend is sending grade_id)
+            // (ফ্রন্টএন্ড grade_id পাঠালে এটা কাজ করবে)
             ->when($request->filled('grade_id'), function ($q) use ($request) {
                 $gradeId = $request->input('grade_id');
                 $q->whereHas('sessionFee', function ($sq) use ($gradeId) {
                     $sq->where('grade_id', $gradeId);
                 });
             })
-            // ✅ exclude by student_fees.id
+            // ✅ already invoiced student_fee বাদ দাও
             ->when($invoicedStudentFeeIds->count() > 0, function ($q) use ($invoicedStudentFeeIds) {
                 $q->whereNotIn('id', $invoicedStudentFeeIds);
             })

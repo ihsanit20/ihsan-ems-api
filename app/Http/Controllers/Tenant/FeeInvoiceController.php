@@ -5,7 +5,7 @@ namespace App\Http\Controllers\Tenant;
 use App\Http\Controllers\Controller;
 use App\Models\Tenant\FeeInvoice;
 use App\Models\Tenant\FeeInvoiceItem;
-use App\Models\Tenant\SessionFee;
+use App\Models\Tenant\StudentFee;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
@@ -41,8 +41,8 @@ class FeeInvoiceController extends Controller
         $feeInvoice->load([
             'student',
             'academicSession',
-            'items.sessionFee.fee',
-            'items.sessionFee.grade',
+            'items.studentFee.sessionFee.fee',
+            'items.studentFee.sessionFee.grade',
             'payments'
         ]);
 
@@ -57,7 +57,7 @@ class FeeInvoiceController extends Controller
             'invoice_date' => 'required|date',
             'due_date' => 'nullable|date',
             'items' => 'required|array|min:1',
-            'items.*.session_fee_id' => 'required|exists:tenant.session_fees,id',
+            'items.*.student_fee_id' => 'required|exists:tenant.student_fees,id',
             'items.*.description' => 'nullable|string',
             'items.*.amount' => 'nullable|numeric|min:0',
             'items.*.discount_amount' => 'nullable|numeric|min:0',
@@ -85,14 +85,14 @@ class FeeInvoiceController extends Controller
             $totalDiscount = 0;
 
             foreach ($validated['items'] as $item) {
-                $sessionFee = SessionFee::findOrFail($item['session_fee_id']);
-                $amount = $item['amount'] ?? $sessionFee->amount;
+                $studentFee = StudentFee::findOrFail($item['student_fee_id']);
+                $amount = $item['amount'] ?? $studentFee->amount;
                 $discountAmount = $item['discount_amount'] ?? 0;
                 $netAmount = $amount - $discountAmount;
 
                 FeeInvoiceItem::create([
                     'fee_invoice_id' => $invoice->id,
-                    'session_fee_id' => $item['session_fee_id'],
+                    'student_fee_id' => $item['student_fee_id'],
                     'description' => $item['description'] ?? null,
                     'amount' => $amount,
                     'discount_amount' => $discountAmount,
@@ -110,7 +110,7 @@ class FeeInvoiceController extends Controller
                 'payable_amount' => $totalAmount - $totalDiscount,
             ]);
 
-            $invoice->load('items.sessionFee.fee');
+            $invoice->load('items.studentFee.sessionFee.fee');
 
             return response()->json([
                 'message' => 'Invoice created successfully',
@@ -125,7 +125,7 @@ class FeeInvoiceController extends Controller
             'invoice_date' => 'required|date',
             'due_date' => 'nullable|date',
             'items' => 'required|array|min:1',
-            'items.*.session_fee_id' => 'required|exists:tenant.session_fees,id',
+            'items.*.student_fee_id' => 'required|exists:tenant.student_fees,id',
             'items.*.description' => 'nullable|string',
             'items.*.amount' => 'nullable|numeric|min:0',
             'items.*.discount_amount' => 'nullable|numeric|min:0',
@@ -146,14 +146,14 @@ class FeeInvoiceController extends Controller
             $totalDiscount = 0;
 
             foreach ($validated['items'] as $item) {
-                $sessionFee = SessionFee::findOrFail($item['session_fee_id']);
-                $amount = $item['amount'] ?? $sessionFee->amount;
+                $studentFee = StudentFee::findOrFail($item['student_fee_id']);
+                $amount = $item['amount'] ?? $studentFee->amount;
                 $discountAmount = $item['discount_amount'] ?? 0;
                 $netAmount = $amount - $discountAmount;
 
                 FeeInvoiceItem::create([
                     'fee_invoice_id' => $feeInvoice->id,
-                    'session_fee_id' => $item['session_fee_id'],
+                    'student_fee_id' => $item['student_fee_id'],
                     'description' => $item['description'] ?? null,
                     'amount' => $amount,
                     'discount_amount' => $discountAmount,
@@ -171,7 +171,7 @@ class FeeInvoiceController extends Controller
                 'payable_amount' => $totalAmount - $totalDiscount,
             ]);
 
-            $feeInvoice->load('items.sessionFee.fee');
+            $feeInvoice->load('items.studentFee.sessionFee.fee');
 
             return response()->json([
                 'message' => 'Invoice updated successfully',

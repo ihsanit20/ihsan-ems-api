@@ -4,6 +4,7 @@ namespace App\Models\Tenant;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use App\Models\Tenant\StudentFee;
 
 class FeeInvoiceItem extends BaseTenantModel
 {
@@ -12,7 +13,7 @@ class FeeInvoiceItem extends BaseTenantModel
 
     protected $fillable = [
         'fee_invoice_id',
-        'session_fee_id',
+        'student_fee_id',
         'description',
         'amount',
         'discount_amount',
@@ -24,8 +25,8 @@ class FeeInvoiceItem extends BaseTenantModel
         return $this->belongsTo(FeeInvoice::class, 'fee_invoice_id');
     }
 
-    public function sessionFee(): BelongsTo
+    public function studentFee(): BelongsTo
     {
-        return $this->belongsTo(SessionFee::class, 'session_fee_id');
+        return $this->belongsTo(StudentFee::class, 'student_fee_id');
     }
 }
