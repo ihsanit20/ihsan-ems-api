@@ -44,14 +44,14 @@ class StudentFeeController extends Controller
         if ($useLatestEnrollment) {
             // If auto_session is enabled, academic_session_id is optional
             $validated = $request->validate([
-                'student_id' => 'required|exists:students,id',
-                'academic_session_id' => 'nullable|exists:academic_sessions,id',
-                'session_fee_id' => 'required_without:items|exists:session_fees,id',
+                'student_id' => 'required|exists:tenant.students,id',
+                'academic_session_id' => 'nullable|exists:tenant.academic_sessions,id',
+                'session_fee_id' => 'required_without:items|exists:tenant.session_fees,id',
                 'amount' => 'nullable|numeric|min:0',
                 'discount_type' => 'nullable|in:flat,percent',
                 'discount_value' => 'nullable|numeric|min:0',
                 'items' => 'array',
-                'items.*.session_fee_id' => 'required|exists:session_fees,id',
+                'items.*.session_fee_id' => 'required|exists:tenant.session_fees,id',
                 'items.*.amount' => 'nullable|numeric|min:0',
                 'items.*.discount_type' => 'nullable|in:flat,percent',
                 'items.*.discount_value' => 'nullable|numeric|min:0',
@@ -74,14 +74,14 @@ class StudentFeeController extends Controller
         } else {
             // Original validation - academic_session_id is required
             $validated = $request->validate([
-                'student_id' => 'required|exists:students,id',
-                'academic_session_id' => 'required|exists:academic_sessions,id',
-                'session_fee_id' => 'required_without:items|exists:session_fees,id',
+                'student_id' => 'required|exists:tenant.students,id',
+                'academic_session_id' => 'required|exists:tenant.academic_sessions,id',
+                'session_fee_id' => 'required_without:items|exists:tenant.session_fees,id',
                 'amount' => 'nullable|numeric|min:0',
                 'discount_type' => 'nullable|in:flat,percent',
                 'discount_value' => 'nullable|numeric|min:0',
                 'items' => 'array',
-                'items.*.session_fee_id' => 'required|exists:session_fees,id',
+                'items.*.session_fee_id' => 'required|exists:tenant.session_fees,id',
                 'items.*.amount' => 'nullable|numeric|min:0',
                 'items.*.discount_type' => 'nullable|in:flat,percent',
                 'items.*.discount_value' => 'nullable|numeric|min:0',
@@ -150,11 +150,11 @@ class StudentFeeController extends Controller
     public function bulkAssign(Request $request)
     {
         $validated = $request->validate([
-            'academic_session_id' => 'required|exists:academic_sessions,id',
+            'academic_session_id' => 'required|exists:tenant.academic_sessions,id',
             'student_ids' => 'required|array',
-            'student_ids.*' => 'exists:students,id',
+            'student_ids.*' => 'exists:tenant.students,id',
             'session_fee_ids' => 'required|array',
-            'session_fee_ids.*' => 'exists:session_fees,id',
+            'session_fee_ids.*' => 'exists:tenant.session_fees,id',
             'amount' => 'nullable|numeric|min:0',
             'discount_type' => 'nullable|in:flat,percent',
             'discount_value' => 'nullable|numeric|min:0',

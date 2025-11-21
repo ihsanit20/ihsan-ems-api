@@ -52,12 +52,12 @@ class FeeInvoiceController extends Controller
     public function store(Request $request)
     {
         $validated = $request->validate([
-            'student_id' => 'required|exists:students,id',
-            'academic_session_id' => 'required|exists:academic_sessions,id',
+            'student_id' => 'required|exists:tenant.students,id',
+            'academic_session_id' => 'required|exists:tenant.academic_sessions,id',
             'invoice_date' => 'required|date',
             'due_date' => 'nullable|date',
             'items' => 'required|array|min:1',
-            'items.*.session_fee_id' => 'required|exists:session_fees,id',
+            'items.*.session_fee_id' => 'required|exists:tenant.session_fees,id',
             'items.*.description' => 'nullable|string',
             'items.*.amount' => 'nullable|numeric|min:0',
             'items.*.discount_amount' => 'nullable|numeric|min:0',
@@ -125,7 +125,7 @@ class FeeInvoiceController extends Controller
             'invoice_date' => 'required|date',
             'due_date' => 'nullable|date',
             'items' => 'required|array|min:1',
-            'items.*.session_fee_id' => 'required|exists:session_fees,id',
+            'items.*.session_fee_id' => 'required|exists:tenant.session_fees,id',
             'items.*.description' => 'nullable|string',
             'items.*.amount' => 'nullable|numeric|min:0',
             'items.*.discount_amount' => 'nullable|numeric|min:0',
