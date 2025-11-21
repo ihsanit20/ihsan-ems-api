@@ -46,8 +46,8 @@ class StudentController extends Controller
             $query->with($with);
         }
 
-        // Optionally include latest enrollment with related data
-        if ($request->boolean('with_latest_enrollment', false)) {
+        // Optionally include latest enrollment with related data (default: true)
+        if ($request->boolean('with_latest_enrollment', true)) {
             $query->with(['enrollments' => function ($q) {
                 $q->orderByDesc('academic_session_id')
                     ->orderByDesc('id')
