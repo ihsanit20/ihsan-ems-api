@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Tenant;
 
 use App\Http\Controllers\Controller;
+use App\Models\Tenant\FeeInvoiceItem;
 use App\Models\Tenant\StudentFee;
 use App\Models\Tenant\Student;
 use Illuminate\Http\Request;
@@ -221,5 +222,47 @@ class StudentFeeController extends Controller
             'message' => 'Bulk update completed',
             'data' => $updated
         ]);
+    }
+
+    public function dueFees(Request $request, int $studentId)
+    {
+        /**
+         * ✅ We want DUE fees from student_fees table.
+         * Exclude only those student_fees that are already invoiced.
+         */
+
+        // 1) already invoiced student_fee_ids for this student (optionally scoped by session)
+        $invoicedStudentFeeIds = FeeInvoiceItem::whereHas('feeInvoice', function ($q) use ($studentId, $request) {
+            $q->where('student_id', $studentId);
+
+            if ($request->filled('academic_session_id')) {
+                $q->where('academic_session_id', $request->input('academic_session_id'));
+            }
+        })
+            ->whereNotNull('student_fee_id')
+            ->pluck('student_fee_id')
+            ->unique()
+            ->values();
+
+        // 2) now pull due StudentFee rows
+        $dueFees = StudentFee::with(['sessionFee.fee', 'sessionFee.grade', 'academicSession'])
+            ->where('student_id', $studentId)
+            ->when($request->filled('academic_session_id'), function ($q) use ($request) {
+                $q->where('academic_session_id', $request->input('academic_session_id'));
+            })
+            // optional grade filter (your frontend is sending grade_id)
+            ->when($request->filled('grade_id'), function ($q) use ($request) {
+                $gradeId = $request->input('grade_id');
+                $q->whereHas('sessionFee', function ($sq) use ($gradeId) {
+                    $sq->where('grade_id', $gradeId);
+                });
+            })
+            // ✅ exclude by student_fees.id
+            ->when($invoicedStudentFeeIds->count() > 0, function ($q) use ($invoicedStudentFeeIds) {
+                $q->whereNotIn('id', $invoicedStudentFeeIds);
+            })
+            ->get();
+
+        return response()->json($dueFees);
     }
 }

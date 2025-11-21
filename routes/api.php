@@ -436,6 +436,10 @@ Route::prefix('v1')
                 ->whereNumber('studentId')
                 ->name('students.invoices');
 
+            Route::get('students/{studentId}/due-fees', [StudentFeeController::class, 'dueFees'])
+                ->whereNumber('studentId')
+                ->name('students.due-fees');
+
             // Payments
             Route::get('payments', [PaymentController::class, 'index'])
                 ->name('payments.index');
