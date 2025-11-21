@@ -2,13 +2,8 @@
 
 namespace App\Models\Tenant;
 
-use Illuminate\Database\Eloquent\Model;
-
-class AcademicSession extends Model
+class AcademicSession extends BaseTenantModel
 {
-    /** Tenant DB */
-    protected $connection = 'tenant';
-
     /** Table name */
     protected $table = 'academic_sessions';
 

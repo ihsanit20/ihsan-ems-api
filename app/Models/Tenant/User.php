@@ -10,6 +10,7 @@ class User extends Authenticatable
 {
     use HasApiTokens, Notifiable;
 
+    // Use tenant database connection
     protected $connection = 'tenant';
     protected $table = 'users';
 

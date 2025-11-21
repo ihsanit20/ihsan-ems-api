@@ -3,13 +3,11 @@
 namespace App\Models\Tenant;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
-use Illuminate\Database\Eloquent\Model;
 
-class District extends Model
+class District extends BaseTenantModel
 {
     use HasFactory;
 
-    protected $connection = 'tenant';
 
     protected $table = 'districts';
 

@@ -2,12 +2,10 @@
 
 namespace App\Models\Tenant;
 
-use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
-class Grade extends Model
+class Grade extends BaseTenantModel
 {
-    protected $connection = 'tenant';
     protected $table = 'grades';
 
     protected $fillable = [

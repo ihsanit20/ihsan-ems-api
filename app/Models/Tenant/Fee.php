@@ -2,11 +2,8 @@
 
 namespace App\Models\Tenant;
 
-use Illuminate\Database\Eloquent\Model;
-
-class Fee extends Model
+class Fee extends BaseTenantModel
 {
-    protected $connection = 'tenant';
 
     protected $table = 'fees';
 

@@ -3,14 +3,11 @@
 namespace App\Models\Tenant;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
-use Illuminate\Database\Eloquent\Model;
 
-class Subject extends Model
+class Subject extends BaseTenantModel
 {
     use HasFactory;
 
-    // Tenant DB connection
-    protected $connection = 'tenant';
 
     protected $fillable = [
         'grade_id',
@@ -29,8 +26,8 @@ class Subject extends Model
         return $this->belongsTo(Grade::class);
     }
 
-    public function subjectSessions()
+    public function SessionSubjects()
     {
-        return $this->hasMany(SubjectSession::class);
+        return $this->hasMany(SessionSubject::class);
     }
 }

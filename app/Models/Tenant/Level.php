@@ -2,11 +2,8 @@
 
 namespace App\Models\Tenant;
 
-use Illuminate\Database\Eloquent\Model;
-
-class Level extends Model
+class Level extends BaseTenantModel
 {
-    protected $connection = 'tenant';
     protected $table = 'levels';
 
     protected $fillable = [

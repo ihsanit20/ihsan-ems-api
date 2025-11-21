@@ -3,14 +3,12 @@
 namespace App\Models\Tenant;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
-use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
-class StudentFee extends Model
+class StudentFee extends BaseTenantModel
 {
     use HasFactory;
 
-    protected $connection = 'tenant';
 
     protected $fillable = [
         'student_id',

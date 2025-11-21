@@ -2,15 +2,13 @@
 
 namespace App\Models\Tenant;
 
-use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use App\Models\Tenant\Division;
 use App\Models\Tenant\District;
 use App\Models\Tenant\Area;
 
-class AdmissionApplication extends Model
+class AdmissionApplication extends BaseTenantModel
 {
-    protected $connection = 'tenant';
 
     protected $table = 'admission_applications';
 

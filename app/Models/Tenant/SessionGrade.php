@@ -2,13 +2,11 @@
 
 namespace App\Models\Tenant;
 
-use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
-class SessionGrade extends Model
+class SessionGrade extends BaseTenantModel
 {
-    protected $connection = 'tenant';
     protected $table = 'session_grades';
 
     protected $fillable = [

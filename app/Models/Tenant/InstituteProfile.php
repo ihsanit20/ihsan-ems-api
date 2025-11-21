@@ -2,12 +2,8 @@
 
 namespace App\Models\Tenant;
 
-use Illuminate\Database\Eloquent\Model;
-
-class InstituteProfile extends Model
+class InstituteProfile extends BaseTenantModel
 {
-    /** Tenant DB */
-    protected $connection = 'tenant';
 
     protected $table = 'institute_profiles';
 

@@ -3,13 +3,11 @@
 namespace App\Models\Tenant;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
-use Illuminate\Database\Eloquent\Model;
 
-class SessionSubject extends Model
+class SessionSubject extends BaseTenantModel
 {
     use HasFactory;
 
-    protected $connection = 'tenant';
     protected $table = 'session_subjects';
 
     protected $fillable = [

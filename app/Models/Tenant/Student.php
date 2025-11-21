@@ -2,13 +2,11 @@
 
 namespace App\Models\Tenant;
 
-use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
-class Student extends Model
+class Student extends BaseTenantModel
 {
-    protected $connection = 'tenant';
 
     protected $table = 'students';
 

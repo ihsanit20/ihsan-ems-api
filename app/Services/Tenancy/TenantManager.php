@@ -6,6 +6,7 @@ namespace App\Services\Tenancy;
 use App\Models\Tenant;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 class TenantManager
 {
@@ -37,6 +38,13 @@ class TenantManager
         ]);
 
         DB::reconnect('tenant');
+
+        // Add tenant context to all logs for easier debugging
+        Log::withContext([
+            'tenant_id' => $tenant->id,
+            'tenant_name' => $tenant->name,
+            'tenant_domain' => $tenant->domain,
+        ]);
     }
 
     public function tenant(): ?Tenant
