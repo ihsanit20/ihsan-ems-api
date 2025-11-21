@@ -469,7 +469,6 @@ Route::prefix('v1')
          * ------------------------------------------------ */
         Route::middleware(['auth:sanctum', $ALLOW['GUARDIAN_PLUS']])->group(function () {
             Route::get('wards', fn() => response()->json(['wards' => []]))->name('guardian.wards.index');
-            Route::get('payments', fn() => response()->json(['payments' => []]))->name('guardian.payments.index');
 
             // Guardian + others: view own applications
             Route::get('admission-applications/my', [AdmissionApplicationController::class, 'myApplications'])
