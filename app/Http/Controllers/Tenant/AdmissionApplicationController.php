@@ -66,9 +66,17 @@ class AdmissionApplicationController extends Controller
             'session_grade_id'    => ['required', 'exists:tenant.session_grades,id'],
 
             'application_type'    => ['nullable', 'in:new,re_admission'],
-            'existing_student_id' => ['nullable', 'exists:tenant.students,id'],
+            'existing_student_id' => [
+                'nullable',
+                'exists:tenant.students,id',
+                function ($attr, $value, $fail) use ($request) {
+                    if ($request->get('application_type') === 're_admission' && !$value) {
+                        $fail('existing_student_id is required for re_admission.');
+                    }
+                },
+            ],
 
-            'applicant_name'      => ['required', 'string', 'max:255'],
+            'applicant_name'      => ['nullable', 'string', 'max:255'],
             'gender'              => ['nullable', 'string', 'max:10'],
             'date_of_birth'       => ['nullable', 'date'],
             'student_phone'       => ['nullable', 'string', 'max:20'],
@@ -107,7 +115,6 @@ class AdmissionApplicationController extends Controller
             'previous_result_division'     => ['nullable', 'string', 'max:100'],
 
             'residential_type'    => ['nullable', 'in:residential,new_musafir,non_residential'],
-
             'applied_via'         => ['nullable', 'in:online,offline'],
             'application_date'    => ['nullable', 'date'],
 
@@ -115,24 +122,68 @@ class AdmissionApplicationController extends Controller
             'meta_json'           => ['nullable', 'array'],
         ]);
 
-        // default values
-        $data['application_no'] = $this->generateApplicationNo();
+        // defaults
+        $data['application_no']   = $this->generateApplicationNo();
         $data['application_type'] = $data['application_type'] ?? 'new';
-        $data['applied_via'] = $data['applied_via'] ?? 'online';
-        $data['status'] = 'pending';
+        $data['applied_via']      = $data['applied_via'] ?? 'online';
+        $data['status']           = 'pending';
 
-        // guardian auto-fill (UI তে হবে, তবুও ব্যাকএন্ডে সেফটি)
+        /** 1) Duplicate guard for existing student */
+        if (!empty($data['existing_student_id'])) {
+            $exists = AdmissionApplication::where('existing_student_id', $data['existing_student_id'])
+                ->where('academic_session_id', $data['academic_session_id'])
+                ->whereIn('status', ['pending', 'accepted', 'admitted'])
+                ->exists();
+
+            if ($exists) {
+                return response()->json([
+                    'message' => 'এই ছাত্রের নতুন সেশনে আবেদন আগেই আছে।',
+                ], 422);
+            }
+        }
+
+        /** 2) Prefill from existing student (recommended) */
+        if (!empty($data['existing_student_id'])) {
+            $student = Student::findOrFail($data['existing_student_id']);
+
+            $data['applicant_name'] = $data['applicant_name'] ?? $student->name_bn;
+            $data['gender']         = $data['gender'] ?? $student->gender;
+            $data['date_of_birth']  = $data['date_of_birth'] ?? $student->date_of_birth;
+            $data['student_phone']  = $data['student_phone'] ?? $student->student_phone;
+            $data['student_email']  = $data['student_email'] ?? $student->student_email;
+
+            $data['father_name']       = $data['father_name'] ?? $student->father_name;
+            $data['father_phone']      = $data['father_phone'] ?? $student->father_phone;
+            $data['father_occupation'] = $data['father_occupation'] ?? $student->father_occupation;
+
+            $data['mother_name']       = $data['mother_name'] ?? $student->mother_name;
+            $data['mother_phone']      = $data['mother_phone'] ?? $student->mother_phone;
+            $data['mother_occupation'] = $data['mother_occupation'] ?? $student->mother_occupation;
+
+            $data['guardian_type']     = $data['guardian_type'] ?? $student->guardian_type;
+            $data['guardian_name']     = $data['guardian_name'] ?? $student->guardian_name;
+            $data['guardian_phone']    = $data['guardian_phone'] ?? $student->guardian_phone;
+            $data['guardian_relation'] = $data['guardian_relation'] ?? $student->guardian_relation;
+
+            $data['present_address']   = $data['present_address'] ?? $student->present_address;
+            $data['permanent_address'] = $data['permanent_address'] ?? $student->permanent_address;
+
+            $data['residential_type']  = $data['residential_type'] ?? $student->residential_type;
+            $data['photo_path']        = $data['photo_path'] ?? $student->photo_path;
+            $data['meta_json']         = $data['meta_json'] ?? $student->meta_json;
+        }
+
+        /** 3) Guardian auto-fill safety */
         if (($data['guardian_type'] ?? 'father') === 'father') {
-            $data['guardian_name']  = $data['guardian_name']  ?? $data['father_name'] ?? null;
-            $data['guardian_phone'] = $data['guardian_phone'] ?? $data['father_phone'] ?? null;
+            $data['guardian_name']     = $data['guardian_name'] ?? $data['father_name'] ?? null;
+            $data['guardian_phone']    = $data['guardian_phone'] ?? $data['father_phone'] ?? null;
             $data['guardian_relation'] = $data['guardian_relation'] ?? 'Father';
         } elseif (($data['guardian_type'] ?? null) === 'mother') {
-            $data['guardian_name']  = $data['guardian_name']  ?? $data['mother_name'] ?? null;
-            $data['guardian_phone'] = $data['guardian_phone'] ?? $data['mother_phone'] ?? null;
+            $data['guardian_name']     = $data['guardian_name'] ?? $data['mother_name'] ?? null;
+            $data['guardian_phone']    = $data['guardian_phone'] ?? $data['mother_phone'] ?? null;
             $data['guardian_relation'] = $data['guardian_relation'] ?? 'Mother';
         }
 
-        // address JSON/casts handle automatically
         $application = AdmissionApplication::create($data);
 
         return response()->json([

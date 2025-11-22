@@ -137,6 +137,13 @@ Route::prefix('v1')
         Route::get('areas', [AddressController::class, 'areas'])
             ->name('areas.index');
 
+        Route::get('students', [StudentController::class, 'index'])
+            ->name('students.index');
+
+        Route::get('students/{student}', [StudentController::class, 'show'])
+            ->whereNumber('student')
+            ->name('students.show');
+
         /* ------------------------------------------------
          | Authenticated (shared by all signed-in roles)
          * ------------------------------------------------ */
@@ -311,10 +318,6 @@ Route::prefix('v1')
                 ->whereNumber('id')
                 ->name('admission-applications.admit');
 
-            // Student Management (Admin+)
-            Route::get('students', [StudentController::class, 'index'])
-                ->name('students.index');
-
             Route::get('students/stats', [StudentController::class, 'stats'])
                 ->name('students.stats');
 
@@ -323,10 +326,6 @@ Route::prefix('v1')
 
             Route::post('students', [StudentController::class, 'store'])
                 ->name('students.store');
-
-            Route::get('students/{student}', [StudentController::class, 'show'])
-                ->whereNumber('student')
-                ->name('students.show');
 
             Route::match(['put', 'patch'], 'students/{student}', [StudentController::class, 'update'])
                 ->whereNumber('student')

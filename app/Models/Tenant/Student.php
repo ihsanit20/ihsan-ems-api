@@ -7,7 +7,6 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Student extends BaseTenantModel
 {
-
     protected $table = 'students';
 
     protected $fillable = [
@@ -56,7 +55,6 @@ class Student extends BaseTenantModel
         return $this->belongsTo(User::class, 'user_id');
     }
 
-    // ভবিষ্যতে যখন student_enrollments বানাবে, তখন এভাবে ব্যবহার করতে পারবে
     public function enrollments(): HasMany
     {
         return $this->hasMany(StudentEnrollment::class, 'student_id');
@@ -64,12 +62,6 @@ class Student extends BaseTenantModel
 
     /* -------- Helper Methods -------- */
 
-    /**
-     * Get the latest/current enrollment for the student.
-     * Useful for fee assignment and academic session information.
-     *
-     * @return StudentEnrollment|null
-     */
     public function getLatestEnrollment(): ?StudentEnrollment
     {
         return $this->enrollments()
@@ -79,10 +71,7 @@ class Student extends BaseTenantModel
     }
 
     /**
-     * Get latest enrollment with all relationships loaded.
-     * This is what the API endpoint returns.
-     *
-     * @return StudentEnrollment|null
+     * Old full details (used when needed)
      */
     public function getLatestEnrollmentWithDetails(): ?StudentEnrollment
     {
@@ -91,6 +80,35 @@ class Student extends BaseTenantModel
                 'academicSession',
                 'sessionGrade.grade.level',
                 'section',
+            ])
+            ->orderByDesc('academic_session_id')
+            ->orderByDesc('id')
+            ->first();
+    }
+
+    /**
+     * ✅ Slim latest enrollment (id + name only)
+     * Search/list/readmit UI-র জন্য best.
+     */
+    public function getLatestEnrollmentWithDetailsSlim(): ?StudentEnrollment
+    {
+        return $this->enrollments()
+            ->select([
+                'id',
+                'student_id',
+                'academic_session_id',
+                'session_grade_id',
+                'section_id',
+                'roll_no',
+                'status',
+                'admission_type',
+            ])
+            ->with([
+                'academicSession:id,name,is_active',
+                'sessionGrade:id,academic_session_id,grade_id',
+                'sessionGrade.grade:id,level_id,name',
+                'sessionGrade.grade.level:id,name',
+                'section:id,session_grade_id,name',
             ])
             ->orderByDesc('academic_session_id')
             ->orderByDesc('id')
