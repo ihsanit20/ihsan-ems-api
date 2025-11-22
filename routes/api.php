@@ -361,6 +361,9 @@ Route::prefix('v1')
 
             Route::post('students/bulk-promote', [StudentController::class, 'bulkPromote'])
                 ->name('students.bulk-promote');
+
+            Route::post('invoices/generate-monthly', [FeeInvoiceController::class, 'generateMonthly'])
+                ->name('invoices.generate-monthly');
         });
 
         /* ------------------------------------------------

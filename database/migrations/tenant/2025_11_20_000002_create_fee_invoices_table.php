@@ -16,6 +16,7 @@ return new class extends Migration
             $table->foreignId('student_id')->constrained('students');
             $table->foreignId('academic_session_id')->constrained('academic_sessions');
             $table->string('invoice_no')->unique();
+            $table->string('invoice_month', 7)->nullable();
             $table->date('invoice_date');
             $table->date('due_date')->nullable();
             $table->decimal('total_amount', 10, 2)->default(0);

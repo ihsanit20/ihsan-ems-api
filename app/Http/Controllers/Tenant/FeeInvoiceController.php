@@ -6,11 +6,97 @@ use App\Http\Controllers\Controller;
 use App\Models\Tenant\FeeInvoice;
 use App\Models\Tenant\FeeInvoiceItem;
 use App\Models\Tenant\StudentFee;
+use App\Models\Tenant\StudentEnrollment;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 class FeeInvoiceController extends Controller
 {
+    public function generateMonthly(Request $request)
+    {
+        $validated = $request->validate([
+            'month' => 'nullable|date_format:Y-m',
+        ]);
+
+        try {
+            $invoiceDate = $this->resolveMonth($validated['month'] ?? null);
+        } catch (\InvalidArgumentException $e) {
+            return response()->json([
+                'message' => $e->getMessage(),
+            ], 422);
+        }
+
+        $invoiceMonth = $invoiceDate->format('Y-m');
+        $summary = [
+            'month'   => $invoiceMonth,
+            'created' => 0,
+            'skipped' => 0,
+            'failed'  => 0,
+        ];
+
+        StudentEnrollment::query()
+            ->where('status', 'active')
+            ->orderBy('id')
+            ->chunk(100, function ($enrollments) use ($invoiceDate, $invoiceMonth, &$summary) {
+                foreach ($enrollments as $enrollment) {
+                    try {
+                        $studentFees = StudentFee::with(['sessionFee.fee'])
+                            ->where('student_id', $enrollment->student_id)
+                            ->where('academic_session_id', $enrollment->academic_session_id)
+                            ->whereHas('sessionFee.fee', function ($q) {
+                                $q->where('billing_type', 'recurring')
+                                    ->where('recurring_cycle', 'monthly')
+                                    ->where('is_active', true);
+                            })
+                            ->get();
+
+                        if ($studentFees->isEmpty()) {
+                            $summary['skipped']++;
+                            continue;
+                        }
+
+                        $created = DB::transaction(function () use ($enrollment, $invoiceDate, $invoiceMonth, $studentFees) {
+                            $exists = FeeInvoice::where('student_id', $enrollment->student_id)
+                                ->where('academic_session_id', $enrollment->academic_session_id)
+                                ->where('invoice_month', $invoiceMonth)
+                                ->lockForUpdate()
+                                ->exists();
+
+                            if ($exists) {
+                                return false;
+                            }
+
+                            $this->createInvoice(
+                                $enrollment->student_id,
+                                $enrollment->academic_session_id,
+                                $invoiceDate,
+                                $invoiceMonth,
+                                $studentFees
+                            );
+
+                            return true;
+                        });
+
+                        $summary[$created ? 'created' : 'skipped']++;
+                    } catch (\Throwable $e) {
+                        $summary['failed']++;
+
+                        Log::error('Monthly invoice generation failed', [
+                            'student_id'          => $enrollment->student_id ?? null,
+                            'academic_session_id' => $enrollment->academic_session_id ?? null,
+                            'invoice_month'       => $invoiceMonth,
+                            'error'               => $e->getMessage(),
+                        ]);
+                    }
+                }
+            });
+
+        return response()->json($summary);
+    }
+
     public function index(Request $request)
     {
         $query = FeeInvoice::with('student')->withCount('items');
@@ -187,6 +273,93 @@ class FeeInvoiceController extends Controller
         return response()->json([
             'message' => 'Invoice cancelled successfully'
         ]);
+    }
+
+    protected function resolveMonth(?string $month): Carbon
+    {
+        if ($month === null) {
+            return now()->startOfMonth();
+        }
+
+        try {
+            return Carbon::createFromFormat('Y-m', $month)->startOfMonth();
+        } catch (\Throwable) {
+            throw new \InvalidArgumentException('Invalid month format. Use YYYY-MM.');
+        }
+    }
+
+    protected function createInvoice(
+        int $studentId,
+        int $academicSessionId,
+        Carbon $invoiceDate,
+        string $invoiceMonth,
+        Collection $studentFees
+    ): FeeInvoice {
+        $invoiceNo = $this->generateInvoiceNo($invoiceDate);
+
+        $invoice = FeeInvoice::create([
+            'student_id'          => $studentId,
+            'academic_session_id' => $academicSessionId,
+            'invoice_no'          => $invoiceNo,
+            'invoice_month'       => $invoiceMonth,
+            'invoice_date'        => $invoiceDate->toDateString(),
+            'due_date'            => $invoiceDate->copy()->addDays(10)->toDateString(),
+            'status'              => 'pending',
+        ]);
+
+        $totalAmount   = 0;
+        $totalDiscount = 0;
+
+        foreach ($studentFees as $studentFee) {
+            $amount = (float) $studentFee->amount;
+            $discountAmount = $this->calculateDiscount($studentFee, $amount);
+            $netAmount = max($amount - $discountAmount, 0);
+
+            FeeInvoiceItem::create([
+                'fee_invoice_id'  => $invoice->id,
+                'student_fee_id'  => $studentFee->id,
+                'amount'          => $amount,
+                'discount_amount' => $discountAmount,
+                'net_amount'      => $netAmount,
+            ]);
+
+            $totalAmount += $amount;
+            $totalDiscount += $discountAmount;
+        }
+
+        $invoice->update([
+            'total_amount'   => round($totalAmount, 2),
+            'total_discount' => round($totalDiscount, 2),
+            'payable_amount' => round($totalAmount - $totalDiscount, 2),
+        ]);
+
+        return $invoice;
+    }
+
+    protected function calculateDiscount(StudentFee $studentFee, float $amount): float
+    {
+        $value = $studentFee->discount_value ?? 0;
+
+        if ($studentFee->discount_type === 'percent' && $value > 0) {
+            return round($amount * ($value / 100), 2);
+        }
+
+        if ($studentFee->discount_type === 'flat' && $value > 0) {
+            return (float) min($amount, $value);
+        }
+
+        return 0.0;
+    }
+
+    protected function generateInvoiceNo(Carbon $invoiceDate): string
+    {
+        $year = $invoiceDate->format('Y');
+
+        $countForYear = FeeInvoice::whereYear('invoice_date', $invoiceDate->year)
+            ->lockForUpdate()
+            ->count();
+
+        return sprintf('INV-%s-%04d', $year, $countForYear + 1);
     }
 
     public function studentInvoices(int $studentId)

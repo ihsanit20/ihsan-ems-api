@@ -15,6 +15,7 @@ class FeeInvoice extends BaseTenantModel
         'student_id',
         'academic_session_id',
         'invoice_no',
+        'invoice_month',
         'invoice_date',
         'due_date',
         'total_amount',
