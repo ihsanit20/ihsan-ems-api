@@ -119,7 +119,8 @@ class FeeInvoiceController extends Controller
             $query->where('invoice_no', 'like', '%' . $request->invoice_no . '%');
         }
 
-        $invoices = $query->orderBy('created_at', 'desc')->paginate($request->get('per_page', 15));
+        $invoices = $query->orderBy('created_at', 'desc')
+            ->paginate($request->get('per_page', 15));
 
         return response()->json($invoices);
     }
@@ -152,15 +153,17 @@ class FeeInvoiceController extends Controller
         ]);
 
         return DB::transaction(function () use ($validated) {
-            // Generate invoice number
-            $invoiceNo = 'INV-' . date('Ymd') . '-' . str_pad(FeeInvoice::count() + 1, 5, '0', STR_PAD_LEFT);
+
+            // ✅ NEW invoice no format: INV-YYMMDD-000
+            $invoiceDate = Carbon::parse($validated['invoice_date']);
+            $invoiceNo = $this->generateInvoiceNo($invoiceDate);
 
             // Create invoice
             $invoice = FeeInvoice::create([
                 'student_id' => $validated['student_id'],
                 'academic_session_id' => $validated['academic_session_id'],
                 'invoice_no' => $invoiceNo,
-                'invoice_date' => $validated['invoice_date'],
+                'invoice_date' => $invoiceDate->toDateString(),
                 'due_date' => $validated['due_date'] ?? null,
                 'total_amount' => 0,
                 'total_discount' => 0,
@@ -353,15 +356,21 @@ class FeeInvoiceController extends Controller
         return 0.0;
     }
 
+    /**
+     * ✅ NEW FORMAT:
+     * INV-YYMMDD-000 (daily 3-digit serial)
+     */
     protected function generateInvoiceNo(Carbon $invoiceDate): string
     {
-        $year = $invoiceDate->format('Y');
+        $prefix = 'INV-' . $invoiceDate->format('ymd'); // YYMMDD
 
-        $countForYear = FeeInvoice::whereYear('invoice_date', $invoiceDate->year)
+        $countForDay = FeeInvoice::whereDate('invoice_date', $invoiceDate->toDateString())
             ->lockForUpdate()
             ->count();
 
-        return sprintf('INV-%s-%04d', $year, $countForYear + 1);
+        $serial = str_pad($countForDay + 1, 3, '0', STR_PAD_LEFT);
+
+        return "{$prefix}-{$serial}";
     }
 
     public function studentInvoices(int $studentId)
@@ -391,7 +400,6 @@ class FeeInvoiceController extends Controller
         $recentLimit = $validated['recent_limit'] ?? 10;
         $pendingLimit = $validated['pending_limit'] ?? 10;
 
-        // ✅ optional cache (60 sec)
         $cacheKey = "fees:dashboard:" . ($sessionId ?? 'all');
 
         return Cache::remember($cacheKey, 60, function () use ($sessionId, $recentLimit, $pendingLimit) {
@@ -401,7 +409,6 @@ class FeeInvoiceController extends Controller
                 $invoiceBase->where('academic_session_id', $sessionId);
             }
 
-            // ✅ stats (server-side aggregate)
             $totalInvoices = (clone $invoiceBase)->count();
 
             $pendingAmount = (clone $invoiceBase)
@@ -421,7 +428,6 @@ class FeeInvoiceController extends Controller
                 ->distinct('student_id')
                 ->count('student_id');
 
-            // ✅ pending / partial invoices list
             $pendingInvoices = (clone $invoiceBase)
                 ->with('student')
                 ->withCount('items')
@@ -430,10 +436,9 @@ class FeeInvoiceController extends Controller
                 ->limit($pendingLimit)
                 ->get();
 
-            // ✅ recent payments list
             $paymentBase = Payment::query()->with(['student', 'feeInvoice']);
-
             if ($sessionId) {
+                // যদি payments টেবিলে academic_session_id না থাকে, এই ফিল্টারটা বাদ দাও
                 $paymentBase->where('academic_session_id', $sessionId);
             }
 
@@ -448,7 +453,6 @@ class FeeInvoiceController extends Controller
                 'partial_amount' => (float) $partialAmount,
                 'paid_amount' => (float) $paidAmount,
                 'students_with_dues' => $studentsWithDues,
-
                 'pending_invoices' => $pendingInvoices,
                 'recent_payments' => $recentPayments,
             ]);
