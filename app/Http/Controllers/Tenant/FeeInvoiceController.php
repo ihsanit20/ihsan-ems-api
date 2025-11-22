@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Tenant;
 use App\Http\Controllers\Controller;
 use App\Models\Tenant\FeeInvoice;
 use App\Models\Tenant\FeeInvoiceItem;
+use App\Models\Tenant\Payment;
 use App\Models\Tenant\StudentFee;
 use App\Models\Tenant\StudentEnrollment;
 use Carbon\Carbon;
@@ -12,6 +13,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Cache;
 
 class FeeInvoiceController extends Controller
 {
@@ -375,5 +377,81 @@ class FeeInvoiceController extends Controller
         $invoices = $query->orderBy('invoice_date', 'desc')->get();
 
         return response()->json($invoices);
+    }
+
+    public function dashboardSummary(Request $request)
+    {
+        $validated = $request->validate([
+            'academic_session_id' => 'nullable|integer|exists:tenant.academic_sessions,id',
+            'recent_limit' => 'nullable|integer|min:1|max:50',
+            'pending_limit' => 'nullable|integer|min:1|max:50',
+        ]);
+
+        $sessionId = $validated['academic_session_id'] ?? null;
+        $recentLimit = $validated['recent_limit'] ?? 10;
+        $pendingLimit = $validated['pending_limit'] ?? 10;
+
+        // ✅ optional cache (60 sec)
+        $cacheKey = "fees:dashboard:" . ($sessionId ?? 'all');
+
+        return Cache::remember($cacheKey, 60, function () use ($sessionId, $recentLimit, $pendingLimit) {
+
+            $invoiceBase = FeeInvoice::query();
+            if ($sessionId) {
+                $invoiceBase->where('academic_session_id', $sessionId);
+            }
+
+            // ✅ stats (server-side aggregate)
+            $totalInvoices = (clone $invoiceBase)->count();
+
+            $pendingAmount = (clone $invoiceBase)
+                ->where('status', 'pending')
+                ->sum('payable_amount');
+
+            $partialAmount = (clone $invoiceBase)
+                ->where('status', 'partial')
+                ->sum('payable_amount');
+
+            $paidAmount = (clone $invoiceBase)
+                ->where('status', 'paid')
+                ->sum('payable_amount');
+
+            $studentsWithDues = (clone $invoiceBase)
+                ->whereIn('status', ['pending', 'partial'])
+                ->distinct('student_id')
+                ->count('student_id');
+
+            // ✅ pending / partial invoices list
+            $pendingInvoices = (clone $invoiceBase)
+                ->with('student')
+                ->withCount('items')
+                ->whereIn('status', ['pending', 'partial'])
+                ->orderByDesc('due_date')
+                ->limit($pendingLimit)
+                ->get();
+
+            // ✅ recent payments list
+            $paymentBase = Payment::query()->with(['student', 'feeInvoice']);
+
+            if ($sessionId) {
+                $paymentBase->where('academic_session_id', $sessionId);
+            }
+
+            $recentPayments = $paymentBase
+                ->orderByDesc('payment_date')
+                ->limit($recentLimit)
+                ->get();
+
+            return response()->json([
+                'total_invoices' => $totalInvoices,
+                'pending_amount' => (float) $pendingAmount,
+                'partial_amount' => (float) $partialAmount,
+                'paid_amount' => (float) $paidAmount,
+                'students_with_dues' => $studentsWithDues,
+
+                'pending_invoices' => $pendingInvoices,
+                'recent_payments' => $recentPayments,
+            ]);
+        });
     }
 }

@@ -12,6 +12,7 @@ class PaymentController extends Controller
 {
     public function index(Request $request)
     {
+        // ✅ List view–তে heavy invoice items দরকার নেই
         $query = Payment::with(['student', 'feeInvoice']);
 
         if ($request->has('student_id')) {
@@ -38,50 +39,61 @@ class PaymentController extends Controller
             $query->where('status', $request->status);
         }
 
-        $payments = $query->orderBy('payment_date', 'desc')->paginate($request->get('per_page', 15));
+        $payments = $query
+            ->orderBy('payment_date', 'desc')
+            ->paginate($request->get('per_page', 15));
 
         return response()->json($payments);
     }
 
     public function show(Payment $payment)
     {
-        $payment->load(['student', 'feeInvoice']);
+        // ✅ Receipt page-এ fee invoice items + fee name লাগবে
+        $payment->load([
+            'student',
+            'feeInvoice' => function ($q) {
+                $q->with([
+                    'items.studentFee.sessionFee.fee',   // ✅ fee name
+                    'items.studentFee.sessionFee.grade' // optional
+                ])->withCount('items');
+            },
+        ]);
+
         return response()->json($payment);
     }
 
     public function store(Request $request)
     {
         $validated = $request->validate([
-            'student_id' => 'required|exists:tenant.students,id',
+            'student_id'     => 'required|exists:tenant.students,id',
             'fee_invoice_id' => 'nullable|exists:tenant.fee_invoices,id',
-            'payment_date' => 'required|date',
-            'method' => 'required|string',
-            'amount' => 'required|numeric|min:0',
-            'reference_no' => 'nullable|string',
+            'payment_date'   => 'required|date',
+            'method'         => 'required|string',
+            'amount'         => 'required|numeric|min:0',
+            'reference_no'   => 'nullable|string',
         ]);
 
         return DB::transaction(function () use ($validated) {
-            // Create payment
             $payment = Payment::create([
-                'student_id' => $validated['student_id'],
+                'student_id'     => $validated['student_id'],
                 'fee_invoice_id' => $validated['fee_invoice_id'] ?? null,
-                'payment_date' => $validated['payment_date'],
-                'method' => $validated['method'],
-                'amount' => $validated['amount'],
-                'status' => 'completed',
-                'reference_no' => $validated['reference_no'] ?? null,
+                'payment_date'   => $validated['payment_date'],
+                'method'         => $validated['method'],
+                'amount'         => $validated['amount'],
+                'status'         => 'completed',
+                'reference_no'   => $validated['reference_no'] ?? null,
             ]);
 
-            // Update invoice status if linked to an invoice
             if ($payment->fee_invoice_id) {
                 $this->updateInvoiceStatus($payment->fee_invoice_id);
             }
 
+            // ✅ store response-এও nested items দরকার নেই, শুধু basic
             $payment->load(['student', 'feeInvoice']);
 
             return response()->json([
                 'message' => 'Payment created successfully',
-                'data' => $payment
+                'data'    => $payment
             ], 201);
         });
     }
@@ -90,16 +102,15 @@ class PaymentController extends Controller
     {
         $validated = $request->validate([
             'payment_date' => 'required|date',
-            'method' => 'required|string',
-            'amount' => 'required|numeric|min:0',
-            'status' => 'required|in:pending,completed,failed,refunded',
+            'method'       => 'required|string',
+            'amount'       => 'required|numeric|min:0',
+            'status'       => 'required|in:pending,completed,failed,refunded',
             'reference_no' => 'nullable|string',
         ]);
 
         return DB::transaction(function () use ($payment, $validated) {
             $payment->update($validated);
 
-            // Update invoice status if linked to an invoice
             if ($payment->fee_invoice_id) {
                 $this->updateInvoiceStatus($payment->fee_invoice_id);
             }
@@ -108,7 +119,7 @@ class PaymentController extends Controller
 
             return response()->json([
                 'message' => 'Payment updated successfully',
-                'data' => $payment
+                'data'    => $payment
             ]);
         });
     }
@@ -120,14 +131,14 @@ class PaymentController extends Controller
 
             $payment->delete();
 
-            // Update invoice status if it was linked to an invoice
             if ($invoiceId) {
                 $this->updateInvoiceStatus($invoiceId);
             }
 
+            // ✅ 204 এ body যায় না, তাই 200 return করলাম
             return response()->json([
                 'message' => 'Payment deleted successfully'
-            ], 204);
+            ]);
         });
     }
 
@@ -150,27 +161,26 @@ class PaymentController extends Controller
     }
 
     /**
-     * Update invoice status based on payments
+     * ✅ Update invoice status based on completed payments
      */
     private function updateInvoiceStatus(int $invoiceId): void
     {
         $invoice = FeeInvoice::findOrFail($invoiceId);
 
-        // Calculate total paid (only completed payments)
         $totalPaid = Payment::where('fee_invoice_id', $invoiceId)
             ->where('status', 'completed')
             ->sum('amount');
 
-        // Determine new status
-        if ($totalPaid == 0) {
+        $payable = (float) $invoice->payable_amount; // ✅ string safe cast
+
+        if ($totalPaid <= 0) {
             $newStatus = 'pending';
-        } elseif ($totalPaid >= $invoice->payable_amount) {
+        } elseif ($totalPaid >= $payable) {
             $newStatus = 'paid';
         } else {
             $newStatus = 'partial';
         }
 
-        // Update invoice status
         $invoice->update(['status' => $newStatus]);
     }
 }

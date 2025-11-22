@@ -468,6 +468,9 @@ Route::prefix('v1')
             Route::get('invoices/{feeInvoice}/payments', [PaymentController::class, 'invoicePayments'])
                 ->whereNumber('feeInvoice')
                 ->name('invoices.payments');
+
+            Route::get('fees/dashboard-summary', [FeeInvoiceController::class, 'dashboardSummary'])
+                ->name('fees.dashboard-summary');
         });
 
         /* ------------------------------------------------

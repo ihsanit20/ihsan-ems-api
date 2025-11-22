@@ -9,7 +9,6 @@ class Payment extends BaseTenantModel
 {
     use HasFactory;
 
-
     protected $fillable = [
         'student_id',
         'fee_invoice_id',
@@ -18,6 +17,12 @@ class Payment extends BaseTenantModel
         'amount',
         'status',
         'reference_no',
+    ];
+
+    // ✅ helpful casts (frontend numeric/date mismatch কমাবে)
+    protected $casts = [
+        'payment_date' => 'date:Y-m-d',
+        'amount'       => 'float',
     ];
 
     public function student(): BelongsTo
